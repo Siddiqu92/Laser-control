@@ -3,6 +3,7 @@ import type { ChartDataState, ChartOptionsState } from "@/types";
 import { ChartData, ChartOptions } from "chart.js";
 import { FilterMatchMode, FilterOperator } from "primereact/api";
 import { Button } from "primereact/button";
+import { Checkbox } from "primereact/checkbox";
 import { Chart } from "primereact/chart";
 import { Column } from "primereact/column";
 import { DataTable, DataTableFilterMeta } from "primereact/datatable";
@@ -13,6 +14,7 @@ import { Tooltip } from "primereact/tooltip";
 import { Avatar } from "primereact/avatar"; // Added Avatar import
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { LayoutContext } from "../../layout/context/layoutcontext";
+
 
 interface Student {
     id: string;
@@ -440,44 +442,181 @@ const statusBodyTemplate = (rowData: Student) => {
                 </div>
             </div>
 
-            {/* Performance Overview Chart */}
-            <div className="col-12 xl:col-9">
-                <div className="card h-auto">
-                    <div className="flex align-items-start justify-content-between mb-6">
-                        <span className="text-900 text-xl font-semibold">
-                            School Performance Overview
-                        </span>
-                        <Dropdown
-                            options={timePeriods}
-                            value={selectedPeriod}
-                            className="w-10rem"
-                            optionLabel="label"
-                            onChange={onPeriodChange}
-                        ></Dropdown>
+<div className="col-12 xl:col-12">
+    <div className="card h-auto">
+        <div className="flex align-items-start justify-content-between mb-6">
+            <span className="text-900 text-xl font-semibold">
+                Subject Progress Dashboard
+            </span>
+        </div>
+        
+        {/* Filter Controls */}
+        <div className="flex flex-wrap align-items-center gap-3 mb-4 p-3 border-round border-1 surface-border">
+            <div className="flex flex-column" style={{ minWidth: '200px' }}>
+                <label htmlFor="gradeSelect" className="text-sm font-medium mb-1">Grade</label>
+                <Dropdown 
+                    id="gradeSelect"
+                    options={[
+                        { label: 'All Grades', value: 'all' },
+                        { label: 'Kindergarten', value: 'kindergarten' },
+                        { label: 'Grade 1', value: 'grade1' },
+                        { label: 'Grade 2', value: 'grade2' }
+                    ]}
+                    placeholder="Select Grade"
+                    className="w-full"
+                />
+            </div>
+            
+            <div className="flex flex-column" style={{ minWidth: '200px' }}>
+                <label htmlFor="subjectSelect" className="text-sm font-medium mb-1">Subject</label>
+                <Dropdown 
+                    id="subjectSelect"
+                    options={[
+                        { label: 'All Subjects', value: 'all' },
+                        { label: 'Math', value: 'math' },
+                        { label: 'Science', value: 'science' },
+                        { label: 'English', value: 'english' }
+                    ]}
+                    placeholder="Select Subject"
+                    className="w-full"
+                />
+            </div>
+            
+            <div className="flex flex-column" style={{ minWidth: '200px' }}>
+                <label className="text-sm font-medium mb-1">Status</label>
+                <div className="flex align-items-center gap-3">
+                    <div className="flex align-items-center">
+                        <Checkbox inputId="read" checked={true} />
+                        <label htmlFor="read" className="ml-2 text-sm">Read</label>
                     </div>
-                    <Chart
-                        height="300px"
-                        type="bar"
-                        data={chartData.barData}
-                        options={chartOptions.barOptions}
-                    ></Chart>
+                    <div className="flex align-items-center">
+                        <Checkbox inputId="unread" />
+                        <label htmlFor="unread" className="ml-2 text-sm">Unread</label>
+                    </div>
+                    <div className="flex align-items-center">
+                        <Checkbox inputId="failed" />
+                        <label htmlFor="failed" className="ml-2 text-sm">Failed</label>
+                    </div>
                 </div>
             </div>
-
-            {/* Students by Stream Chart */}
-            <div className="col-12 xl:col-3">
-                <div className="card h-auto">
-                    <div className="text-900 text-xl font-semibold mb-6">
-                        Students by Stream
-                    </div>
-                    <Chart
-                        height="300px"
-                        type="pie"
-                        data={chartData.pieData}
-                        options={chartOptions.pieOptions}
-                    ></Chart>
-                </div>
+            
+            <Button 
+                label="Load" 
+                icon="pi pi-filter" 
+                className="ml-auto align-self-end"
+                onClick={() => {/* Filter logic here */}}
+            />
+        </div>
+        
+        {/* Course Info */}
+        <div className="flex justify-content-between align-items-center p-3 bg-gray-100 border-round mb-4">
+            <div>
+                <span className="font-medium">Loaded Course: </span>
+                <span>Kindergarten-Math | Total Students: 11</span>
             </div>
+            <div className="flex gap-2">
+                <Button 
+                    label="Export CSV" 
+                    icon="pi pi-download" 
+                    severity="secondary" 
+                    outlined 
+                    size="small"
+                />
+                <Button 
+                    label="Print" 
+                    icon="pi pi-print" 
+                    severity="secondary" 
+                    outlined 
+                    size="small"
+                />
+            </div>
+        </div>
+        
+        {/* Progress Table */}
+        <div className="overflow-x-auto">
+            <table className="w-full">
+                <thead>
+                    <tr className="border-bottom-1 surface-border">
+                        <th className="text-left p-3 font-medium">#</th>
+                        <th className="text-left p-3 font-medium">Students</th>
+                        <th className="text-left p-3 font-medium">Big Small an</th>
+                        <th className="text-left p-3 font-medium">Count with or...</th>
+                        <th className="text-left p-3 font-medium">Count with Pa R...</th>
+                        <th className="text-left p-3 font-medium">Shadow Match...</th>
+                        <th className="text-left p-3 font-medium">Assessment</th>
+                        <th className="text-left p-3 font-medium">Number 1</th>
+                        <th className="text-left p-3 font-medium">Numbers Song</th>
+                        <th className="text-left p-3 font-medium">Overall</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {[
+                        { id: 1, name: 'Haram Fatima', progress: ['✔', '✔', '—', '—', '✔', '✔', '—'], overall: '85%' },
+                        { id: 2, name: 'Abeeha Ali', progress: ['67%', '—', '—', '—', '67%', '—', '—'], overall: '45%' },
+                        { id: 3, name: 'Armish Faheem', progress: ['67%', '—', '67%', '—', '67%', '—', '67%'], overall: '67%' },
+                        { id: 4, name: 'Anabia Abbas', progress: ['67%', '✔', '—', '—', '67%', '✔', '—'], overall: '72%' },
+                        { id: 5, name: 'Zain Ali', progress: ['✔', '—', '—', '—', '✔', '—', '—'], overall: '60%' },
+                        { id: 6, name: 'M. Talha Malik', progress: ['✔', '—', '33%', '—', '✔', '—', '33%'], overall: '55%' },
+                        { id: 7, name: 'Pakiza Iyaz', progress: ['✔', '✔', '—', '—', '✔', '✔', '—'], overall: '80%' }
+                    ].map((student) => (
+                        <tr key={student.id} className="border-bottom-1 surface-border hover:surface-hover">
+                            <td className="p-3">{student.id}</td>
+                            <td className="p-3 font-medium">{student.name}</td>
+                            {student.progress.map((item, index) => (
+                                <td key={index} className="p-3">
+                                    {item === '✔' ? (
+                                        <i className="pi pi-check text-green-500"></i>
+                                    ) : item === '—' ? (
+                                        <span className="text-gray-400">—</span>
+                                    ) : (
+                                        <div className="flex align-items-center gap-2">
+                                            <div className="relative w-8rem bg-gray-200 rounded" style={{ height: '6px' }}>
+                                                <div 
+                                                    className="absolute bg-primary-500 rounded" 
+                                                    style={{ 
+                                                        height: '6px', 
+                                                        width: item 
+                                                    }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm">{item}</span>
+                                        </div>
+                                    )}
+                                </td>
+                            ))}
+                            <td className="p-3">
+                                <div className="flex align-items-center gap-2">
+                                    <div className="relative w-8rem bg-gray-200 rounded" style={{ height: '6px' }}>
+                                        <div 
+                                            className="absolute bg-primary-500 rounded" 
+                                            style={{ 
+                                                height: '6px', 
+                                                width: student.overall 
+                                            }}
+                                        ></div>
+                                    </div>
+                                    <span className="font-medium">{student.overall}</span>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+        
+        {/* Pagination */}
+        <div className="flex justify-content-between align-items-center mt-4">
+            <div className="text-sm text-500">
+                Showing 1 to 7 of 7 entries
+            </div>
+            <div className="flex gap-2">
+                <Button icon="pi pi-angle-left" disabled rounded text />
+                <Button label="1" rounded text />
+                <Button icon="pi pi-angle-right" disabled rounded text />
+            </div>
+        </div>
+    </div>
+</div>
 
             {/* Recent Students Table */}
             <div className="col-12 lg:col-8">
