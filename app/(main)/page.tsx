@@ -320,6 +320,10 @@ const statusBodyTemplate = (rowData: Student) => {
         initFilters();
     }, [timePeriods, selectedPeriod, layoutConfig]);
 
+
+
+
+    
     return (
         <div className="grid">
             {/* Stats Cards */}
@@ -482,23 +486,25 @@ const statusBodyTemplate = (rowData: Student) => {
                 />
             </div>
             
-            <div className="flex flex-column" style={{ minWidth: '200px' }}>
-                <label className="text-sm font-medium mb-1">Status</label>
-                <div className="flex align-items-center gap-3">
-                    <div className="flex align-items-center">
-                        <Checkbox inputId="read" checked={true} />
-                        <label htmlFor="read" className="ml-2 text-sm">Read</label>
-                    </div>
-                    <div className="flex align-items-center">
-                        <Checkbox inputId="unread" />
-                        <label htmlFor="unread" className="ml-2 text-sm">Unread</label>
-                    </div>
-                    <div className="flex align-items-center">
-                        <Checkbox inputId="failed" />
-                        <label htmlFor="failed" className="ml-2 text-sm">Failed</label>
-                    </div>
-                </div>
-            </div>
+
+            
+          <div className="flex flex-column" style={{ minWidth: '200px' }}>
+    <label className="text-sm font-medium mb-1">Status</label>
+    <div className="flex align-items-center gap-3">
+        <div className="flex align-items-center">
+            <Checkbox inputId="read" checked={true} onChange={() => {}} />
+            <label htmlFor="read" className="ml-2 text-sm">Read</label>
+        </div>
+        <div className="flex align-items-center">
+            <Checkbox inputId="unread" checked={false} onChange={() => {}} />
+            <label htmlFor="unread" className="ml-2 text-sm">Unread</label>
+        </div>
+        <div className="flex align-items-center">
+            <Checkbox inputId="failed" checked={false} onChange={() => {}} />
+            <label htmlFor="failed" className="ml-2 text-sm">Failed</label>
+        </div>
+    </div>
+</div>
             
             <Button 
                 label="Load" 
