@@ -4,7 +4,7 @@ import AppSubMenu from "./AppSubMenu";
 const AppMenu = () => {
     const model: MenuModel[] = [
         {
-            label: "Dashboards",
+            label: "",
             icon: "pi pi-home",
             items: [
                 {
@@ -43,7 +43,7 @@ const AppMenu = () => {
                     to: "/settings",
                 },
                 {
-                    label: "Login",
+                    label: "Sign Out",
                     icon: "pi pi-fw pi-sign-in",
                     to: "/auth/login",
                 },
