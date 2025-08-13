@@ -1,55 +1,13 @@
 "use client";
 
 import { useState, useContext } from "react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { InputText } from "primereact/inputtext";
 import { LayoutContext } from "../../../../layout/context/layoutcontext";
+import { ApiService } from "@/service/api"; 
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://stg.naraschools.net:8055";
-
-// --- Axios instance with interceptor ---
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
-});
-
-// --- Login function ---
-const login = async (email: string, password: string) => {
-  try {
-    const response = await api.post("/auth/login", { email, password });
-
-    // Adjust according to your API response structure
-    const { access_token, user } = response.data.data || response.data;
-
-    if (!access_token) {
-      throw new Error("No access token returned from API");
-    }
-
-    return { token: access_token, user };
-  } catch (error: any) {
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    }
-    throw new Error(error.message || "Login failed");
-  }
-};
-
-// --- React Component ---
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,24 +26,27 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const data = await login(email, password);
-      console.log("Login response:", data);
+      const { token } = await ApiService.login(email, password); 
 
-      if (data?.token) {
-        localStorage.setItem("token", data.token);
+      if (token) {
+        localStorage.setItem("token", token);
         if (rememberMe) {
           localStorage.setItem("rememberMe", "true");
         } else {
           localStorage.removeItem("rememberMe");
         }
         router.push("/");
-      } else {
-        alert("Invalid credentials or server response");
       }
     } catch (error: any) {
       alert(error.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleLogin();
     }
   };
 
@@ -98,7 +59,11 @@ const Login = () => {
         className="fixed left-0 top-0 min-h-screen min-w-screen"
         preserveAspectRatio="none"
       >
-        <rect fill={dark ? "var(--primary-900)" : "var(--primary-500)"} width="1600" height="800" />
+        <rect
+          fill={dark ? "var(--primary-900)" : "var(--primary-500)"}
+          width="1600"
+          height="800"
+        />
         <path
           fill={dark ? "var(--primary-800)" : "var(--primary-400)"}
           d="M478.4 581c3.2 0.8 6.4 1.7 9.5 2.5c196.2 52.5 388.7 133.5 593.5 176.6c174.2 36.6 349.5 29.2 518.6-10.2V0H0v574.9c52.3-17.6 106.5-27.7 161.1-30.9C268.4 537.4 375.7 554.2 478.4 581z"
@@ -130,6 +95,7 @@ const Login = () => {
               <InputText
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
                 type="text"
                 className="w-full md:w-25rem"
                 placeholder="Email"
@@ -140,6 +106,7 @@ const Login = () => {
               <InputText
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={handleKeyDown}
                 type="password"
                 className="w-full md:w-25rem"
                 placeholder="Password"

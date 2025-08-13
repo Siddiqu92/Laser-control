@@ -7,7 +7,7 @@ interface FullPageLayoutProps {
 }
 
 export const metadata: Metadata = {
-    title: "PrimeReact APOLLO",
+    title: "Shama UI",
     description:
         "The ultimate collection of design-agnostic, flexible and accessible React UI Components.",
 };

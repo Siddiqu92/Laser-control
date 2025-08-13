@@ -42,11 +42,7 @@ const AppMenu = () => {
                     icon: "pi pi-fw pi-cog",
                     to: "/settings",
                 },
-                {
-                    label: "Sign Out",
-                    icon: "pi pi-fw pi-sign-in",
-                    to: "/auth/login",
-                },
+              
             ],
         },
     ];

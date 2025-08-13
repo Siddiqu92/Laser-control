@@ -1,14 +1,9 @@
-// service/api.js
 import axios from "axios";
 
 const api = axios.create({
-
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
 });
 
-// Request interceptor to add token in header
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
