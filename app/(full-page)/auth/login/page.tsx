@@ -7,12 +7,14 @@ import { Checkbox } from "primereact/checkbox";
 import { InputText } from "primereact/inputtext";
 import { LayoutContext } from "../../../../layout/context/layoutcontext";
 import { ApiService } from "@/service/api"; 
+import { Message } from "primereact/message";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const router = useRouter();
   const { layoutConfig } = useContext(LayoutContext);
@@ -20,25 +22,38 @@ const Login = () => {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("Please enter both email and password");
+      setError("Please enter both email and password");
       return;
     }
 
     setLoading(true);
-    try {
-      const { token } = await ApiService.login(email, password); 
+    setError("");
 
-      if (token) {
-        localStorage.setItem("token", token);
+    try {
+      const { access_token, refresh_token } = await ApiService.login(email, password);
+
+      if (access_token) {
+        localStorage.setItem("token", access_token);
+        
+        if (refresh_token) {
+          localStorage.setItem("refresh_token", refresh_token);
+        }
+
         if (rememberMe) {
           localStorage.setItem("rememberMe", "true");
+          // You might want to store email as well for "remember me" functionality
+          localStorage.setItem("rememberedEmail", email);
         } else {
           localStorage.removeItem("rememberMe");
+          localStorage.removeItem("rememberedEmail");
         }
+
         router.push("/");
+      } else {
+        throw new Error("No access token received");
       }
     } catch (error: any) {
-      alert(error.message || "Login failed");
+      setError(error.message || "Login failed. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -89,6 +104,15 @@ const Login = () => {
             <div className="text-900 text-xl font-bold mb-2">Log in</div>
             <span className="text-600 font-medium">Please enter your details</span>
           </div>
+          
+          {error && (
+            <Message 
+              severity="error" 
+              text={error} 
+              className="w-full mb-3" 
+            />
+          )}
+          
           <div className="flex flex-column">
             <span className="p-input-icon-left w-full mb-4">
               <i className="pi pi-envelope"></i>
@@ -136,6 +160,7 @@ const Login = () => {
               className="w-full"
               onClick={handleLogin}
               disabled={loading}
+              loading={loading}
             />
           </div>
         </div>

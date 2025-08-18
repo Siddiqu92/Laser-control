@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
-import { getProgramOfStudy } from "@/service/api";
+import { ApiService } from "@/service/api";
 
 type StatusValue = "completed" | "in-progress" | "not-started";
 
@@ -17,12 +17,11 @@ export default function SchoolDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const token = localStorage.getItem("access_token") || "";
-        const data = await getProgramOfStudy(token);
-        setPrograms(data);
-        setLoading(false);
+        const data = await ApiService.getProgramOfStudyDetailed();
+        setPrograms(data || []);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching programs:", err);
+      } finally {
         setLoading(false);
       }
     }
@@ -30,10 +29,15 @@ export default function SchoolDashboard() {
   }, []);
 
   const filterOptions = {
-    grades: programs.map((p) => ({ label: p.name, value: p.name })),
+    grades: Array.from(new Set(programs.map((p) => p.name))).map((name) => ({
+      label: name,
+      value: name,
+    })),
     subjects: Array.from(
       new Set(
-        programs.flatMap((p) => p.courses.map((c: any) => c.course_id?.name))
+        programs.flatMap((p) =>
+          p.courses.map((c: any) => c.course_id?.name).filter(Boolean)
+        )
       )
     ).map((name) => ({ label: name, value: name })),
     statuses: [
@@ -123,10 +127,14 @@ export default function SchoolDashboard() {
               </div>
             ))}
             <Button
-              label="Load"
+               label="Load"
               icon="pi pi-filter"
               className="ml-auto"
-              onClick={() => {}}
+              onClick={() => {
+                setSelectedGrade(null);
+                setSelectedSubject(null);
+                setSelectedStatuses([]);
+              }}
             />
           </div>
 
@@ -135,15 +143,10 @@ export default function SchoolDashboard() {
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="p-3">#</th>
-                  <th className="p-3">Students</th>
-                  <th className="p-3">Big Small an</th>
-                  <th className="p-3">Count with or...</th>
-                  <th className="p-3">Count with Pa R..</th>
-                  <th className="p-3">Shadow Match</th>
-                  <th className="p-3">Assesment</th>
-                  <th className="p-3">Number 1</th>
-                    <th className="p-3">Number song</th>
+                  <th className="p-3">Grade</th>
+                  <th className="p-3">Subject</th>
+                  <th className="p-3">Student</th>
+                  <th className="p-3">Status</th>
                 </tr>
               </thead>
               <tbody>

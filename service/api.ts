@@ -1,86 +1,83 @@
-
 import axios from "axios";
-import api from "../config/api";
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  headers: { "Content-Type": "application/json" },
+});
+
+// Request interceptor
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      window.location.href = "/auth/login";
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const ApiService = {
-  // LOGIN
   async login(email: string, password: string) {
     const response = await api.post("/auth/login", { email, password });
-    const { access_token, user } = response.data.data || {};
-    if (!access_token) throw new Error("No access token returned");
+    const data = response.data?.data || response.data;
 
-    localStorage.setItem("token", access_token);
-    return { token: access_token, user };
+    if (!data?.access_token) throw new Error("No access token received");
+
+    localStorage.setItem("token", data.access_token);
+    if (data.refresh_token) {
+      localStorage.setItem("refresh_token", data.refresh_token);
+    }
+
+    return data;
   },
 
-  // GET STUDENT INFO & COURSES
-  async getStudentInfoAndCourses() {
-    const res = await api.get("/get-student-info-and-courses");
-    return res.data;
+  async refreshToken() {
+    const refresh_token = localStorage.getItem("refresh_token");
+    if (!refresh_token) throw new Error("No refresh token available");
+
+    const response = await api.post("/auth/refresh", { refresh_token });
+    const newAccessToken =
+      response.data?.data?.access_token || response.data?.access_token;
+
+    if (!newAccessToken) throw new Error("No access token returned");
+
+    localStorage.setItem("token", newAccessToken);
+    return newAccessToken;
   },
 
-  // PROGRAM OF STUDY
   async getPrograms() {
     const res = await api.get("/items/program_of_study");
-    return res.data;
+    return res.data.data;
   },
 
-  // COURSES
   async getCourses() {
     const res = await api.get("/items/course");
-    return res.data;
+    return res.data.data;
   },
 
-  // GET USERS (Students Only)
-  async getStudents(limit = 25, page = 1) {
-    const query =
-      `/users?limit=${limit}` +
-      `&fields[]=id&fields[]=avatar.modified_on&fields[]=avatar.type` +
-      `&fields[]=avatar.filename_disk&fields[]=avatar.storage&fields[]=avatar.id` +
-      `&fields[]=first_name&fields[]=last_name&fields[]=email` +
-      `&page=${page}&filter[_and][0][role][name][_contains]=student`;
+  async getProgramOfStudyDetailed() {
+    const fields =
+      "id,name,school_id.id,school_id.name," +
+      "courses.course_id.id,courses.course_id.name," +
+      "courses.course_id.student_course_progress.id," +
+      "courses.course_id.student_course_progress.status," +
+      "courses.course_id.student_course_progress.student_id.id," +
+      "courses.course_id.student_course_progress.student_id.name";
 
-    const res = await api.get(query);
-    return res.data;
-  },
-
-  // GET SINGLE COURSE BY ID
-  async getCourseById(courseId: string) {
-    const res = await api.get(`/courses/61/${courseId}`);
-    return res.data;
-  },
-
-  // STUDENT COURSE PROGRESS
-  async getStudentCourseProgress() {
-    const res = await api.get("/items/student_course_progress");
-    return res.data;
+    const res = await api.get(`/items/program_of_study?fields=${fields}`);
+    return res.data.data;
   },
 };
 
-
-
-
-
-
-const API_BASE_URL = "http://stg.naraschools.net:8055";
-
-export const getProgramOfStudy = async (token: string) => {
-  const fields =
-    "id,name,school_id.id,school_id.name," +
-    "courses.course_id.id,courses.course_id.name," +
-    "courses.course_id.student_course_progress.id," +
-    "courses.course_id.student_course_progress.status," +
-    "courses.course_id.student_course_progress.student_id.id," +
-    "courses.course_id.student_course_progress.student_id.name";
-
-  const res = await axios.get(
-    `${API_BASE_URL}/items/program_of_study?fields=${fields}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  return res.data.data;
-};
+export default api;
