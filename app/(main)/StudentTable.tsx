@@ -1,4 +1,5 @@
 "use client";
+import React, { useRef } from "react";
 import { Student, Lesson } from "./types";
 import { getProgressIcon } from "./utils";
 
@@ -15,21 +16,82 @@ export default function StudentTable({
   first,
   onCellClick,
 }: StudentTableProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Mouse wheel -> horizontal scroll
+  const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!scrollContainerRef.current) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      scrollContainerRef.current.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  };
+
+  const headerBg = "#f3f4f6";
+  const border = "1px solid #e5e7eb";
+
   return (
-    <div className="overflow-x-auto rounded-xl shadow-md border border-gray-300">
-      <table className="min-w-max w-full border-collapse border border-gray-300 rounded-xl">
+    <div
+      ref={scrollContainerRef}
+      onWheel={handleWheel}
+      className="overflow-x-auto border-round"
+      style={{
+        maxHeight: "70vh",
+        border,
+        background: "white",
+      }}
+    >
+      <table
+        style={{
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          width: "100%",
+        }}
+      >
         <thead>
-          <tr className="bg-surface-100">
-            <th className="p-3 text-left font-bold border-1 surface-border sticky left-0 z-20 bg-surface-100 min-w-[60px]">
+          <tr style={{ backgroundColor: headerBg }}>
+            <th
+              style={{
+                padding: "1rem",
+                textAlign: "left",
+                fontWeight: 700,
+                border,
+                position: "sticky",
+                left: 0,
+                zIndex: 20,
+                backgroundColor: headerBg,
+                minWidth: 60,
+              }}
+            >
               #
             </th>
-            <th className="p-3 text-left font-bold border-1 surface-border sticky left-14 z-20 bg-surface-100 min-w-[200px]">
-              Student
+            <th
+              style={{
+                padding: "1rem",
+                textAlign: "left",
+                fontWeight: 700,
+                border,
+                position: "sticky",
+                left: 60,
+                zIndex: 20,
+                backgroundColor: headerBg,
+                minWidth: 220,
+              }}
+            >
+              Students
             </th>
             {lessons.map((lesson) => (
               <th
                 key={lesson.id}
-                className="p-3 text-center font-bold border-1 surface-border whitespace-nowrap min-w-48"
+                style={{
+                  padding: "1rem",
+                  textAlign: "center",
+                  fontWeight: 700,
+                  border,
+                  whiteSpace: "nowrap",
+                  minWidth: 150,
+                  backgroundColor: headerBg,
+                }}
                 title={lesson.name}
               >
                 {lesson.name.length > 20
@@ -39,20 +101,42 @@ export default function StudentTable({
             ))}
           </tr>
         </thead>
+
         <tbody>
           {students.map((student, index) => (
             <tr
               key={student.id}
-              className="hover:bg-surface-50 transition-colors"
+              className="hover:bg-gray-50"
+              style={{ transition: "background-color .2s", background: "white" }}
             >
-              <td className="p-3 border-1 surface-border sticky left-0 z-10 bg-white font-medium">
+              <td
+                style={{
+                  padding: "1rem",
+                  border,
+                  position: "sticky",
+                  left: 0,
+                  zIndex: 10,
+                  background: "white",
+                  fontWeight: 600,
+                }}
+              >
                 {first + index + 1}
               </td>
-              <td className="p-3 border-1 surface-border sticky left-14 z-10 bg-white min-w-40">
-                <span className="font-medium text-surface-700">
+              <td
+                style={{
+                  padding: "1rem",
+                  border,
+                  position: "sticky",
+                  left: 60,
+                  zIndex: 10,
+                  background: "white",
+                }}
+              >
+                <span style={{ fontWeight: 600, color: "#374151" }}>
                   {student.first_name} {student.last_name}
                 </span>
               </td>
+
               {lessons.map((lesson) => {
                 const progress = student.lessons_progress.find(
                   (lp) => lp.lesson_id === lesson.id
@@ -61,14 +145,18 @@ export default function StudentTable({
 
                 return (
                   <td
-                    key={lesson.id}
-                    className={`p-3 text-center border-1 surface-border min-w-48 ${
-                      clickable ? "cursor-pointer" : ""
-                    }`}
+                    key={`${student.id}-${lesson.id}`}
+                    style={{
+                      padding: "0.9rem",
+                      textAlign: "center",
+                      border,
+                      cursor: clickable ? "pointer" : "default",
+                      background: "white",
+                    }}
                     onClick={() =>
-                      clickable && progress
+                      clickable
                         ? onCellClick(student.id, lesson.id, lesson.type)
-                        : null
+                        : undefined
                     }
                   >
                     {progress ? getProgressIcon(progress.progress) : "—"}

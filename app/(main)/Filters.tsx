@@ -1,4 +1,5 @@
 "use client";
+import React, { useEffect } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
@@ -31,15 +32,28 @@ export default function Filters({
   setSelectedStatuses,
   onLoad,
 }: FiltersProps) {
+  // Auto-select first subject when grade is selected
+  useEffect(() => {
+    if (selectedGrade && filterOptions.subjects.length > 0 && !selectedSubject) {
+      const firstSubject = filterOptions.subjects[0];
+      setSelectedSubject(firstSubject.value);
+      setSelectedCourseId(firstSubject.courseId);
+    }
+  }, [selectedGrade, filterOptions.subjects, selectedSubject, setSelectedCourseId, setSelectedSubject]);
+
   return (
-    <div className="flex flex-wrap gap-3 mb-4 p-3 border-round border-1 surface-border">
+    <div
+      className="flex flex-wrap gap-3 mb-4 p-3 border-round"
+      style={{ border: "1px solid #e5e7eb", background: "white" }}
+    >
       {/* Grade Dropdown */}
       <Dropdown
         options={filterOptions.grades}
         value={selectedGrade}
         onChange={(e) => setSelectedGrade(e.value)}
-        placeholder="Select Grade"
+        placeholder="Grade"
         className="w-14rem"
+        panelStyle={{ zIndex: 30 }}
       />
 
       {/* Subject Dropdown */}
@@ -51,9 +65,10 @@ export default function Filters({
           const subj = filterOptions.subjects.find((s) => s.value === e.value);
           setSelectedCourseId(subj?.courseId || null);
         }}
-        placeholder="Select Subject"
+        placeholder="Subject"
         className="w-14rem"
         disabled={!selectedGrade || filterOptions.subjects.length === 0}
+        panelStyle={{ zIndex: 30 }}
       />
 
       {/* Status Filters */}
@@ -76,8 +91,21 @@ export default function Filters({
         </div>
       ))}
 
-      {/* Load Button */}
-      <Button label="Load" icon="pi pi-refresh" className="ml-auto" onClick={onLoad} />
+      {/* Load Button - green like the mock */}
+      <Button
+        label="Load"
+        icon="pi pi-refresh"
+        className="ml-auto"
+        style={{
+          backgroundColor: "#22c55e",
+          borderColor: "#22c55e",
+          color: "white",
+          borderRadius: 8,
+          padding: "0.6rem 1.2rem",
+          fontWeight: 700,
+        }}
+        onClick={onLoad}
+      />
     </div>
   );
 }
