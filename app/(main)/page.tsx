@@ -1,176 +1,193 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Dropdown } from "primereact/dropdown";
-import { Button } from "primereact/button";
-import { Checkbox } from "primereact/checkbox";
+import { useState, useEffect, useMemo } from "react";
 import { ApiService } from "@/service/api";
-
-type StatusValue = "completed" | "in-progress" | "not-started";
+import Filters from "./Filters";
+import StudentTable from "./StudentTable";
+import Pagination from "./Pagination";
+import StudentProgress from "./StudentProgress"; 
+import { getFilteredStudents } from "./utils";
+import { DashboardData, StatusValue, Lesson, Student } from "./types";
 
 export default function SchoolDashboard() {
   const [programs, setPrograms] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<StatusValue[]>([]);
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(10);
+
+  const [progressVisible, setProgressVisible] = useState(false);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressTopics, setProgressTopics] = useState<any[]>([]);
+  const [activeStudent, setActiveStudent] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchPrograms() {
       try {
-        const data = await ApiService.getProgramOfStudyDetailed();
-        setPrograms(data || []);
+        const programsData = await ApiService.getProgramOfStudyDetailed();
+        setPrograms(programsData || []);
       } catch (err) {
         console.error("Error fetching programs:", err);
       } finally {
         setLoading(false);
       }
     }
-    fetchData();
+    fetchPrograms();
   }, []);
 
-  const filterOptions = {
-    grades: Array.from(new Set(programs.map((p) => p.name))).map((name) => ({
-      label: name,
-      value: name,
-    })),
-    subjects: Array.from(
-      new Set(
-        programs.flatMap((p) =>
-          p.courses.map((c: any) => c.course_id?.name).filter(Boolean)
-        )
-      )
-    ).map((name) => ({ label: name, value: name })),
-    statuses: [
-      { label: "Completed", value: "completed" },
-      { label: "In Progress", value: "in-progress" },
-      { label: "Not Started", value: "not-started" },
-    ],
+  const fetchDashboardData = async (courseId: string) => {
+    try {
+      setLoading(true);
+      const data = await ApiService.getStudentDashboard(courseId);
+      setDashboardData(data || { lessons: [], students: [] });
+    } catch (err) {
+      console.error("Error fetching dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getFilteredData = () => {
-    let data = [...programs];
+
+  const fetchStudentProgress = async (studentId: string, lessonId: number) => {
+    try {
+      setProgressLoading(true);
+      setProgressVisible(true);
+      const response = await ApiService.getStudentProgress(studentId, lessonId);
+      
+      const topicsData = response?.data || response || [];
+      setProgressTopics(topicsData);
+    } catch (err) {
+      console.error("Error fetching student progress:", err);
+      setProgressTopics([]);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (programs.length > 0 && !selectedGrade && !selectedSubject) {
+      const firstProgram = programs[0];
+      if (firstProgram) {
+        const firstGrade = firstProgram.name;
+        const firstCourse = firstProgram.courses[0]?.course_id;
+        if (firstCourse) {
+          setSelectedGrade(firstGrade);
+          setSelectedSubject(firstCourse.name);
+          setSelectedCourseId(firstCourse.id);
+          fetchDashboardData(firstCourse.id);
+        }
+      }
+    }
+  }, [programs, selectedGrade, selectedSubject]);
+
+  const filterOptions = useMemo(() => {
+    const grades = Array.from(new Set(programs.map((p) => p.name))).map((name) => ({ label: name, value: name }));
+    let subjects: { label: string; value: string; courseId: string }[] = [];
     if (selectedGrade) {
-      data = data.filter((p) => p.name === selectedGrade);
+      const selectedProgram = programs.find((p) => p.name === selectedGrade);
+      if (selectedProgram) {
+        subjects = selectedProgram.courses
+          .map((c: any) => ({ label: c.course_id?.name, value: c.course_id?.name, courseId: c.course_id?.id }))
+          .filter((c: any) => Boolean(c.label));
+      }
     }
-    if (selectedSubject) {
-      data = data.map((p) => ({
-        ...p,
-        courses: p.courses.filter(
-          (c: any) => c.course_id?.name === selectedSubject
-        ),
-      }));
-    }
-    if (selectedStatuses.length > 0) {
-      data = data.map((p) => ({
-        ...p,
-        courses: p.courses.map((c: any) => ({
-          ...c,
-          course_id: {
-            ...c.course_id,
-            student_course_progress:
-              c.course_id?.student_course_progress?.filter((scp: any) =>
-                selectedStatuses.includes(scp.status)
-              ) || [],
-          },
-        })),
-      }));
-    }
-    return data;
+    const statuses = [
+      { label: "Completed", value: "completed" as StatusValue },
+      { label: "In Progress", value: "in-progress" as StatusValue },
+      { label: "Not Started", value: "not-started" as StatusValue },
+    ];
+    return { grades, subjects, statuses };
+  }, [programs, selectedGrade]);
+
+  useEffect(() => {
+    setSelectedSubject(null);
+    setSelectedCourseId(null);
+  }, [selectedGrade]);
+
+  const filteredStudents: Student[] = getFilteredStudents(dashboardData?.students || [], selectedStatuses);
+  const sortedLessons: Lesson[] = useMemo(() => {
+    if (!dashboardData?.lessons) return [];
+    return [...dashboardData.lessons].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+  }, [dashboardData?.lessons]);
+
+  const onPageChange = (event: any) => {
+    setFirst(event.first);
+    setRows(event.rows);
   };
 
-  const filteredPrograms = getFilteredData();
+  const currentPageStudents = filteredStudents.slice(first, first + rows);
 
-  if (loading) return <div>Loading data...</div>;
+  if (loading) return <div className="flex justify-content-center align-items-center min-h-screen">Loading data...</div>;
 
   return (
     <div className="grid">
       <div className="col-12">
         <div className="card h-auto">
           <div className="flex justify-content-between mb-6">
-            <span className="text-900 text-xl font-semibold">
-              Subject Progress Dashboard
-            </span>
+            <span className="text-900 text-xl font-semibold">Subject Progress Dashboard</span>
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-4 p-3 border-round border-1 surface-border">
-            <Dropdown
-              options={filterOptions.grades}
-              value={selectedGrade}
-              onChange={(e) => setSelectedGrade(e.value)}
-              placeholder="Select Grade"
-              className="w-14rem"
-            />
-            <Dropdown
-              options={filterOptions.subjects}
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.value)}
-              placeholder="Select Subject"
-              className="w-14rem"
-            />
-            {filterOptions.statuses.map((status) => (
-              <div key={status.value} className="flex align-items-center">
-                <Checkbox
-                  inputId={status.value}
-                  checked={selectedStatuses.includes(status.value as StatusValue)}
-                  onChange={() =>
-                    setSelectedStatuses((prev) =>
-                      prev.includes(status.value as StatusValue)
-                        ? prev.filter((s) => s !== status.value)
-                        : [...prev, status.value as StatusValue]
-                    )
-                  }
-                />
-                <label htmlFor={status.value} className="ml-2 text-sm">
-                  {status.label}
-                </label>
-              </div>
-            ))}
-            <Button
-               label="Load"
-              icon="pi pi-filter"
-              className="ml-auto"
-              onClick={() => {
-                setSelectedGrade(null);
-                setSelectedSubject(null);
-                setSelectedStatuses([]);
-              }}
-            />
+          <Filters
+            filterOptions={filterOptions}
+            selectedGrade={selectedGrade}
+            setSelectedGrade={setSelectedGrade}
+            selectedSubject={selectedSubject}
+            setSelectedSubject={setSelectedSubject}
+            setSelectedCourseId={setSelectedCourseId}
+            selectedStatuses={selectedStatuses}
+            setSelectedStatuses={setSelectedStatuses}
+            onLoad={() => {
+              if (selectedCourseId) {
+                fetchDashboardData(selectedCourseId);
+              } else {
+                setDashboardData({ lessons: [], students: [] });
+              }
+            }}
+          />
+
+          {/* Course Info */}
+          <div className="mb-4 p-3 bg-gray-100 border-round">
+            <div className="text-lg font-semibold">
+              Loaded Course: {selectedSubject || "All Subjects"} | Total Students: {filteredStudents.length}
+            </div>
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr>
-                  <th className="p-3">Grade</th>
-                  <th className="p-3">Subject</th>
-                  <th className="p-3">Student</th>
-                  <th className="p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPrograms.flatMap((program) =>
-                  program.courses.flatMap((course: any) =>
-                    course.course_id?.student_course_progress?.map(
-                      (progress: any) => (
-                        <tr key={progress.id}>
-                          <td className="p-3">{program.name}</td>
-                          <td className="p-3">{course.course_id?.name}</td>
-                          <td className="p-3">
-                            {progress.student_id?.name || "N/A"}
-                          </td>
-                          <td className="p-3">{progress.status}</td>
-                        </tr>
-                      )
-                    )
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
+          <StudentTable
+            students={currentPageStudents}
+            lessons={sortedLessons}
+            first={first}
+            onCellClick={(studentId: string, lessonId: number, type: string) => {
+              if (type === "learning_object") {
+                setActiveStudent(studentId);
+                fetchStudentProgress(studentId, lessonId);
+              }
+            }}
+          />
+
+          {/* Pagination */}
+          {filteredStudents.length > 0 && (
+            <Pagination first={first} rows={rows} totalRecords={filteredStudents.length} onPageChange={onPageChange} />
+          )}
         </div>
       </div>
+
+      {/* Student Progress Modal */}
+      <StudentProgress
+        visible={progressVisible}
+        onHide={() => setProgressVisible(false)}
+        loading={progressLoading}
+        topics={progressTopics}
+        studentName={
+          activeStudent 
+            ? `${currentPageStudents.find(s => s.id === activeStudent)?.first_name || ''} ${currentPageStudents.find(s => s.id === activeStudent)?.last_name || ''}`
+            : "Student"
+        }
+      />
     </div>
   );
 }
