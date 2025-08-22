@@ -6,8 +6,11 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
-import  api  from "@/service/api";
-import AppBreadCrumb from "@/layout/AppBreadCrumb";
+import { Dialog } from "primereact/dialog";
+import { InputTextarea } from "primereact/inputtextarea";
+import { Dropdown } from "primereact/dropdown";
+import { Toast } from "primereact/toast";
+import api from "@/service/api";
 
 interface Course {
     id: number;
@@ -22,6 +25,16 @@ export default function CoursesPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
     const [courses, setCourses] = useState<Course[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+
+    // Dialog & Form states
+    const [showDialog, setShowDialog] = useState<boolean>(false);
+    const [formData, setFormData] = useState<Partial<Course>>({
+        name: "",
+        description: "",
+        program_of_study: "",
+        session: "",
+        status: "draft",
+    });
 
     // API Call
     const getCourses = async () => {
@@ -67,6 +80,29 @@ export default function CoursesPage() {
         );
     };
 
+    // Handle form input
+    const handleChange = (field: keyof Course, value: any) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    // Save Course
+    const saveCourse = async () => {
+        try {
+            await api.post("/items/course", formData);
+            setShowDialog(false);
+            setFormData({
+                name: "",
+                description: "",
+                program_of_study: "",
+                session: "",
+                status: "draft",
+            });
+            getCourses(); // Refresh table
+        } catch (error) {
+            console.error("Failed to save course:", error);
+        }
+    };
+
     return (
         <div className="layout-main">
             {/* Page Header */}
@@ -74,7 +110,12 @@ export default function CoursesPage() {
                 <div>
                     <span className="text-600">Manage all available courses in the system</span>
                 </div>
-                <Button label="Add New Course" icon="pi pi-plus" className="p-button-primary" />
+                <Button
+                    label="Add New Course"
+                    icon="pi pi-plus"
+                    className="p-button-primary"
+                    onClick={() => setShowDialog(true)}
+                />
             </div>
 
             {/* Card with Table */}
@@ -111,6 +152,82 @@ export default function CoursesPage() {
                     <Column header="Actions" body={actionTemplate} style={{ width: "150px" }} />
                 </DataTable>
             </div>
+
+            {/* Dialog for Add Course */}
+            <Dialog
+                header="Add New Course"
+                visible={showDialog}
+                style={{ width: "500px" }}
+                modal
+                onHide={() => setShowDialog(false)}
+            >
+                <div className="flex flex-column gap-3">
+                    <span className="p-float-label">
+                        <InputText
+                            value={formData.name || ""}
+                            onChange={(e) => handleChange("name", e.target.value)}
+                            className="w-full"
+                        />
+                        <label>Course Name</label>
+                    </span>
+
+                    <span className="p-float-label">
+                        <InputTextarea
+                            value={formData.description || ""}
+                            onChange={(e) => handleChange("description", e.target.value)}
+                            rows={3}
+                            className="w-full"
+                        />
+                        <label>Description</label>
+                    </span>
+
+                    <span className="p-float-label">
+                        <InputText
+                            value={formData.program_of_study || ""}
+                            onChange={(e) => handleChange("program_of_study", e.target.value)}
+                            className="w-full"
+                        />
+                        <label>Program/Grade</label>
+                    </span>
+
+                    <span className="p-float-label">
+                        <InputText
+                            value={formData.session || ""}
+                            onChange={(e) => handleChange("session", e.target.value)}
+                            className="w-full"
+                        />
+                        <label>Session</label>
+                    </span>
+
+                    <span className="p-float-label">
+                        <Dropdown
+                            value={formData.status}
+                            options={[
+                                { label: "Draft", value: "draft" },
+                                { label: "Execute", value: "execute" },
+                            ]}
+                            onChange={(e) => handleChange("status", e.value)}
+                            className="w-full"
+                        />
+                        <label>Status</label>
+                    </span>
+                </div>
+
+                <div className="flex justify-content-end gap-2 mt-4">
+                    <Button
+                        label="Cancel"
+                        icon="pi pi-times"
+                        className="p-button-text"
+                        onClick={() => setShowDialog(false)}
+                    />
+                    <Button
+                        label="Save"
+                        icon="pi pi-check"
+                        className="p-button-primary"
+                        onClick={saveCourse}
+                    />
+                </div>
+            </Dialog>
         </div>
     );
 }

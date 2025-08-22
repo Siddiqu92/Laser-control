@@ -5,9 +5,12 @@ import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
+import { Dropdown } from "primereact/dropdown";
+import { Dialog } from "primereact/dialog";
 import { Tag } from "primereact/tag";
+import { InputTextarea } from "primereact/inputtextarea";
+import { Toast } from "primereact/toast";
 import api from "@/service/api";
-import AppBreadCrumb from "@/layout/AppBreadCrumb";
 
 interface ProgramOfStudy {
     id: number;
@@ -22,7 +25,27 @@ export default function ProgramsOfStudyPage() {
     const [programs, setPrograms] = useState<ProgramOfStudy[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
-    // API call
+    // Add Program Dialog
+    const [showDialog, setShowDialog] = useState(false);
+    const [newProgram, setNewProgram] = useState<Partial<ProgramOfStudy>>({
+        name: "",
+        description: "",
+        type: "",
+        status: "Active",
+    });
+
+    const statusOptions = [
+        { label: "Active", value: "Active" },
+        { label: "Inactive", value: "Inactive" },
+    ];
+
+    const typeOptions = [
+        { label: "Undergraduate", value: "Undergraduate" },
+        { label: "Postgraduate", value: "Postgraduate" },
+        { label: "Diploma", value: "Diploma" },
+    ];
+
+    // Fetch API data
     const getProgramsOfStudy = async () => {
         try {
             const res = await api.get(`/items/program_of_study`);
@@ -37,6 +60,18 @@ export default function ProgramsOfStudyPage() {
     useEffect(() => {
         getProgramsOfStudy();
     }, []);
+
+    // Submit new program
+    const handleAddProgram = async () => {
+        try {
+            const res = await api.post("/items/program_of_study", newProgram);
+            setPrograms([...programs, res.data.data]);
+            setShowDialog(false);
+            setNewProgram({ name: "", description: "", type: "", status: "Active" });
+        } catch (error) {
+            console.error("Failed to add program:", error);
+        }
+    };
 
     // Status badge template
     const statusTemplate = (rowData: ProgramOfStudy) => {
@@ -73,7 +108,12 @@ export default function ProgramsOfStudyPage() {
                 <div>
                     <span className="text-600">Manage all programs and their associated details</span>
                 </div>
-                <Button label="Add New Program" icon="pi pi-plus" className="p-button-primary" />
+                <Button
+                    label="Add New Program"
+                    icon="pi pi-plus"
+                    className="p-button-primary"
+                    onClick={() => setShowDialog(true)}
+                />
             </div>
 
             {/* Card with Table */}
@@ -104,11 +144,67 @@ export default function ProgramsOfStudyPage() {
                 >
                     <Column field="name" header="Program Name" sortable style={{ minWidth: "200px" }} />
                     <Column field="description" header="Description" style={{ minWidth: "250px" }} />
-                    <Column field="type" header="Type" style={{ width: "120px" }} />
+                    <Column field="type" header="Type" style={{ width: "150px" }} />
                     <Column header="Status" body={statusTemplate} style={{ width: "120px" }} sortable />
                     <Column header="Actions" body={actionTemplate} style={{ width: "150px" }} />
                 </DataTable>
             </div>
+
+            {/* Add New Program Dialog */}
+            <Dialog
+                header="Add New Program"
+                visible={showDialog}
+                style={{ width: "500px" }}
+                modal
+                onHide={() => setShowDialog(false)}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button label="Cancel" icon="pi pi-times" className="p-button-text" onClick={() => setShowDialog(false)} />
+                        <Button label="Save" icon="pi pi-check" className="p-button-primary" onClick={handleAddProgram} />
+                    </div>
+                }
+            >
+                <div className="flex flex-column gap-3">
+                    <div>
+                        <label className="block mb-2">Program Name</label>
+                        <InputText
+                            value={newProgram.name}
+                            onChange={(e) => setNewProgram({ ...newProgram, name: e.target.value })}
+                            placeholder="Enter program name"
+                            className="w-full"
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2">Description</label>
+                        <InputTextarea
+                            value={newProgram.description || ""}
+                            onChange={(e) => setNewProgram({ ...newProgram, description: e.target.value })}
+                            placeholder="Enter description"
+                            className="w-full"
+                            rows={3}
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2">Type</label>
+                        <Dropdown
+                            value={newProgram.type}
+                            options={typeOptions}
+                            onChange={(e) => setNewProgram({ ...newProgram, type: e.value })}
+                            placeholder="Select type"
+                            className="w-full"
+                        />
+                    </div>
+                    <div>
+                        <label className="block mb-2">Status</label>
+                        <Dropdown
+                            value={newProgram.status}
+                            options={statusOptions}
+                            onChange={(e) => setNewProgram({ ...newProgram, status: e.value })}
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+            </Dialog>
         </div>
     );
 }

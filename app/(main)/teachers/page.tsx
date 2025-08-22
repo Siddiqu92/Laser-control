@@ -7,6 +7,7 @@ import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import AppBreadCrumb from "@/layout/AppBreadCrumb";
 import api from "@/service/api"; 
+import TeacherForm from "./form";
 
 interface Teacher {
     id: string;
@@ -19,6 +20,7 @@ export default function TeachersPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [showForm, setShowForm] = useState(false); 
 
     // API call to fetch teachers
     const getTeachers = async () => {
@@ -55,6 +57,23 @@ export default function TeachersPage() {
         );
     };
 
+    // handle new teacher submission
+    const handleAddTeacher = async (teacher: any) => {
+        try {
+            // call API to save teacher
+            await api.post("/users", {
+                first_name: teacher.first_name,
+                last_name: teacher.last_name,
+                email: teacher.email,
+                subject: teacher.subject,
+                role: "teacher"
+            });
+            getTeachers(); // refresh list
+        } catch (error) {
+            console.error("Failed to add teacher:", error);
+        }
+    };
+
     return (
         <div className="layout-main">
             {/* Page Header */}
@@ -62,8 +81,20 @@ export default function TeachersPage() {
                 <div>
                     <span className="text-600">Manage all registered teachers in the system</span>
                 </div>
-                <Button label="Add New Teacher" icon="pi pi-plus" className="p-button-primary" />
+                <Button 
+                    label="Add New Teacher" 
+                    icon="pi pi-plus" 
+                    className="p-button-primary" 
+                    onClick={() => setShowForm(true)} 
+                />
             </div>
+
+            {/* Teacher Form Dialog */}
+            <TeacherForm 
+                visible={showForm} 
+                onHide={() => setShowForm(false)} 
+                onSubmit={handleAddTeacher} 
+            />
 
             {/* Card with Table */}
             <div className="surface-card p-4 border-round shadow-2">
