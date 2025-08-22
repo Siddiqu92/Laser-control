@@ -1,58 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
+import  api  from "@/service/api";
 import AppBreadCrumb from "@/layout/AppBreadCrumb";
 
 interface Course {
     id: number;
-    code: string;
     name: string;
-    description: string;
-    credits: number;
-    status: "Active" | "Inactive";
+    description: string | null;
+    program_of_study: string | null;
+    session: string | null;
+    status: string;
 }
 
 export default function CoursesPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
 
-    const [courses] = useState<Course[]>([
-        {
-            id: 1,
-            code: "CS101",
-            name: "Introduction to Programming",
-            description: "Basic programming concepts using Python.",
-            credits: 3,
-            status: "Active",
-        },
-        {
-            id: 2,
-            code: "BUS201",
-            name: "Principles of Marketing",
-            description: "Core marketing principles and strategies.",
-            credits: 4,
-            status: "Active",
-        },
-        {
-            id: 3,
-            code: "DES301",
-            name: "Digital Illustration",
-            description: "Advanced tools and techniques for vector graphics.",
-            credits: 2,
-            status: "Inactive",
-        },
-    ]);
+    // API Call
+    const getCourses = async () => {
+        try {
+            const res = await api.get(`/items/course`);
+            setCourses(res.data.data);
+        } catch (error) {
+            console.error("Failed to fetch courses:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        getCourses();
+    }, []);
 
     // Status badge
     const statusTemplate = (rowData: Course) => {
         return (
             <Tag
                 value={rowData.status}
-                severity={rowData.status === "Active" ? "success" : "danger"}
+                severity={rowData.status === "execute" ? "success" : "warning"}
             />
         );
     };
@@ -61,20 +53,25 @@ export default function CoursesPage() {
     const actionTemplate = (rowData: Course) => {
         return (
             <div className="flex gap-2">
-                <Button icon="pi pi-pencil" className="p-button-sm p-button-rounded p-button-warning" tooltip="Edit" />
-                <Button icon="pi pi-trash" className="p-button-sm p-button-rounded p-button-danger" tooltip="Delete" />
+                <Button
+                    icon="pi pi-pencil"
+                    className="p-button-sm p-button-rounded p-button-warning"
+                    tooltip="Edit"
+                />
+                <Button
+                    icon="pi pi-trash"
+                    className="p-button-sm p-button-rounded p-button-danger"
+                    tooltip="Delete"
+                />
             </div>
         );
     };
 
     return (
         <div className="layout-main">
-          
-
             {/* Page Header */}
             <div className="flex justify-content-between align-items-center mb-4">
                 <div>
-                   
                     <span className="text-600">Manage all available courses in the system</span>
                 </div>
                 <Button label="Add New Course" icon="pi pi-plus" className="p-button-primary" />
@@ -100,15 +97,16 @@ export default function CoursesPage() {
                     value={courses}
                     paginator
                     rows={5}
+                    loading={loading}
                     dataKey="id"
                     globalFilter={globalFilter}
                     emptyMessage="No courses found."
                     className="p-datatable-sm"
                 >
-                    <Column field="code" header="Course Code" sortable style={{ minWidth: "120px" }} />
-                    <Column field="name" header="Course Name" sortable style={{ minWidth: "200px" }} />
+                    <Column field="name" header="Course Name" sortable style={{ minWidth: "220px" }} />
                     <Column field="description" header="Description" style={{ minWidth: "300px" }} />
-                    <Column field="credits" header="Credits" sortable style={{ width: "100px" }} />
+                    <Column field="program_of_study" header="Program/Grade" style={{ width: "160px" }} />
+                    <Column field="session" header="Session" style={{ width: "140px" }} />
                     <Column header="Status" body={statusTemplate} style={{ width: "120px" }} sortable />
                     <Column header="Actions" body={actionTemplate} style={{ width: "150px" }} />
                 </DataTable>

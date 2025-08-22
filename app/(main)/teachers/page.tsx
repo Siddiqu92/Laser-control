@@ -1,27 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import AppBreadCrumb from "@/layout/AppBreadCrumb";
+import api from "@/service/api"; 
 
 interface Teacher {
-    id: number;
+    id: string;
     name: string;
-    subject: string;
-    email: string;
+    email?: string;
+    subject?: string;
 }
 
 export default function TeachersPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
-    const [teachers] = useState<Teacher[]>([
-        { id: 1, name: "John Doe", subject: "Mathematics", email: "john@example.com" },
-        { id: 2, name: "Sarah Smith", subject: "Science", email: "sarah@example.com" },
-        { id: 3, name: "David Johnson", subject: "English", email: "david@example.com" },
-        { id: 4, name: "Emily Brown", subject: "Computer Science", email: "emily@example.com" },
-    ]);
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    // API call to fetch teachers
+    const getTeachers = async () => {
+        try {
+            const res = await api.get(
+                `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=teacher`
+            );
+
+            const data = res.data.data.map((t: any) => ({
+                id: t.id,
+                name: `${t.first_name} ${t.last_name}`,
+                email: t.email ?? "-",
+                subject: t.subject ?? "-", 
+            }));
+
+            setTeachers(data);
+        } catch (error) {
+            console.error("Failed to fetch teachers:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        getTeachers();
+    }, []);
 
     const actionTemplate = (rowData: Teacher) => {
         return (
@@ -62,6 +85,7 @@ export default function TeachersPage() {
                     value={teachers}
                     paginator
                     rows={5}
+                    loading={loading}
                     dataKey="id"
                     globalFilter={globalFilter}
                     emptyMessage="No teachers found."

@@ -1,7 +1,7 @@
 import React from "react";
 import { Student, StatusValue } from "./types";
 
-/** Green check, green % pill, or em-dash — exactly like the mock */
+
 export const getProgressIcon = (progress: number) => {
   if (progress === 100) {
     return (
@@ -21,8 +21,8 @@ export const getProgressIcon = (progress: number) => {
         borderRadius: 6,
         fontSize: "0.85rem",
         fontWeight: 700,
-        background: "#e7f5eb", // light green
-        color: "#16a34a", // green
+        background: "#e7f5eb", 
+        color: "#16a34a", 
         lineHeight: 1.2,
         minWidth: 40,
       }}

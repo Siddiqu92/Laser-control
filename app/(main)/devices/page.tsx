@@ -1,83 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Tag } from "primereact/tag";
-import AppBreadCrumb from "@/layout/AppBreadCrumb";
+import api from "@/service/api"; 
 
 interface Device {
     id: number;
-    name: string;
-    type: string;
-    assignedTo: string;
-    status: "Available" | "In Use" | "Under Maintenance";
+    student_roll_no: string;
+    student_name: string;
+    student_grade: string;
+    os: string;
+    os_version: string;
+    model: string;
+
+    ip_address: string;
+    battery_level: string;
+    device_status: string | null;
 }
 
 export default function DevicesPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
+    const [devices, setDevices] = useState<Device[]>([]);
 
-    const [devices] = useState<Device[]>([
-        {
-            id: 1,
-            name: "Dell Latitude 5420",
-            type: "Laptop",
-            assignedTo: "John Doe",
-            status: "In Use",
-        },
-        {
-            id: 2,
-            name: "Epson EB-X41",
-            type: "Projector",
-            assignedTo: "Library",
-            status: "Available",
-        },
-        {
-            id: 3,
-            name: "iPad Pro 12.9",
-            type: "Tablet",
-            assignedTo: "Sarah Smith",
-            status: "In Use",
-        },
-        {
-            id: 4,
-            name: "HP LaserJet Pro",
-            type: "Printer",
-            assignedTo: "Admin Office",
-            status: "Under Maintenance",
-        },
-    ]);
+    // Fetch devices
+    useEffect(() => {
+        const fetchDevices = async () => {
+            try {
+                const res = await api.get("/items/device");
+                setDevices(res.data.data);
+            } catch (err) {
+                console.error("Error fetching devices:", err);
+            }
+        };
+        fetchDevices();
+    }, []);
 
     // Status badge template
     const statusTemplate = (rowData: Device) => {
-        let severity: "success" | "warning" | "danger" = "success";
-        if (rowData.status === "In Use") severity = "warning";
-        if (rowData.status === "Under Maintenance") severity = "danger";
+        const status = rowData.device_status || "Unknown";
+        let severity: "success" | "warning" | "danger" | "info" = "info";
 
-        return <Tag value={rowData.status} severity={severity} />;
+        if (status === "Connected") severity = "success";
+        else if (status === "Disconnected") severity = "danger";
+        else if (status === null) severity = "warning";
+
+        return <Tag value={status} severity={severity} />;
     };
 
     // Actions column
-    const actionTemplate = (rowData: Device) => {
+    const actionTemplate = () => {
         return (
             <div className="flex gap-2">
-                <Button icon="pi pi-pencil" className="p-button-sm p-button-rounded p-button-warning" tooltip="Edit" />
-                <Button icon="pi pi-trash" className="p-button-sm p-button-rounded p-button-danger" tooltip="Delete" />
+                <Button
+                    icon="pi pi-pencil"
+                    className="p-button-sm p-button-rounded p-button-warning"
+                    tooltip="Edit"
+                />
+                <Button
+                    icon="pi pi-trash"
+                    className="p-button-sm p-button-rounded p-button-danger"
+                    tooltip="Delete"
+                />
             </div>
         );
     };
 
     return (
         <div className="layout-main">
-       
-
             {/* Page Header */}
             <div className="flex justify-content-between align-items-center mb-4">
                 <div>
-                  
-                    <span className="text-600">Manage all devices assigned within the school system</span>
+                    {/* <h2 className="m-0">Devices</h2> */}
+                    <span className="text-600">Manage all devices connected to the school system</span>
                 </div>
                 <Button label="Add New Device" icon="pi pi-plus" className="p-button-primary" />
             </div>
@@ -107,11 +105,16 @@ export default function DevicesPage() {
                     emptyMessage="No devices found."
                     className="p-datatable-sm"
                 >
-                    <Column field="id" header="Device ID" sortable style={{ width: "120px" }} />
-                    <Column field="name" header="Device Name" sortable style={{ minWidth: "200px" }} />
-                    <Column field="type" header="Type" sortable style={{ minWidth: "150px" }} />
-                    <Column field="assignedTo" header="Assigned To" sortable style={{ minWidth: "180px" }} />
-                    <Column header="Status" body={statusTemplate} sortable style={{ width: "160px" }} />
+                    <Column field="id" header="ID" sortable style={{ width: "80px" }} />
+                    <Column field="student_roll_no" header="Roll No" sortable style={{ minWidth: "120px" }} />
+                    <Column field="student_name" header="Student Name" sortable style={{ minWidth: "180px" }} />
+                    <Column field="student_grade" header="Grade" sortable style={{ minWidth: "120px" }} />
+                    <Column field="model" header="Device Model" sortable style={{ minWidth: "180px" }} />
+                    <Column field="os" header="OS" sortable style={{ minWidth: "120px" }} />
+                    <Column field="os_version" header="OS Version" sortable style={{ minWidth: "120px" }} />
+                    <Column field="ip_address" header="IP Address" sortable style={{ minWidth: "150px" }} />
+                    <Column field="battery_level" header="Battery (%)" sortable style={{ minWidth: "120px" }} />
+                    <Column header="Status" body={statusTemplate} style={{ width: "150px" }} sortable />
                     <Column header="Actions" body={actionTemplate} style={{ width: "150px" }} />
                 </DataTable>
             </div>

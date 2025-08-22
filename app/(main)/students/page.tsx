@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
+import api from "@/service/api"; 
 import AppBreadCrumb from "@/layout/AppBreadCrumb";
 
 interface Student {
-    id: number;
+    id: string;
     name: string;
     class: string;
     rollNo: string;
@@ -17,14 +18,35 @@ interface Student {
 
 export default function StudentsPage() {
     const [globalFilter, setGlobalFilter] = useState<string>("");
+    const [students, setStudents] = useState<Student[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
 
-    // Dummy student data
-    const [students] = useState<Student[]>([
-        { id: 1, name: "Ali Khan", class: "10-A", rollNo: "101", email: "ali.khan@example.com" },
-        { id: 2, name: "Sara Ahmed", class: "9-B", rollNo: "202", email: "sara.ahmed@example.com" },
-        { id: 3, name: "Hassan Raza", class: "8-A", rollNo: "303", email: "hassan.raza@example.com" },
-        { id: 4, name: "Ayesha Noor", class: "7-C", rollNo: "404", email: "ayesha.noor@example.com" },
-    ]);
+    // API call
+    const getStudents = async () => {
+        try {
+            const res = await api.get(
+                `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=student`
+            );
+
+            const data = res.data.data.map((s: any, index: number) => ({
+                id: s.id,
+                name: `${s.first_name} ${s.last_name}`,
+                class: `Class ${index + 1}`, // placeholder (replace if API provides class)
+                rollNo: `R-${index + 100}`, // placeholder (replace if API provides roll no)
+                email: s.email ?? "-", // agar backend se email aaye
+            }));
+
+            setStudents(data);
+        } catch (error) {
+            console.error("Failed to fetch students:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        getStudents();
+    }, []);
 
     // Action buttons template
     const actionTemplate = (rowData: Student) => {
@@ -39,12 +61,9 @@ export default function StudentsPage() {
 
     return (
         <div className="layout-main">
-            
-
             {/* Page Header */}
             <div className="flex justify-content-between align-items-center mb-4">
                 <div>
-              
                     <span className="text-600">Manage all registered students in the system</span>
                 </div>
                 <Button label="Add New Student" icon="pi pi-plus" className="p-button-primary" />
@@ -70,6 +89,7 @@ export default function StudentsPage() {
                     value={students}
                     paginator
                     rows={5}
+                    loading={loading}
                     dataKey="id"
                     globalFilter={globalFilter}
                     emptyMessage="No students found."
