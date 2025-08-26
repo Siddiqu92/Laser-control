@@ -6,7 +6,7 @@ import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { InputText } from "primereact/inputtext";
 import { LayoutContext } from "../../../../layout/context/layoutcontext";
-import { ApiService } from "@/service/api"; 
+import { useAuth } from "@/contexts/AuthContext"; // ADD THIS IMPORT
 import { Message } from "primereact/message";
 
 const Login = () => {
@@ -18,6 +18,7 @@ const Login = () => {
 
   const router = useRouter();
   const { layoutConfig } = useContext(LayoutContext);
+  const { login } = useAuth(); // ADD THIS
   const dark = layoutConfig.colorScheme !== "light";
 
   const handleLogin = async () => {
@@ -30,27 +31,19 @@ const Login = () => {
     setError("");
 
     try {
-      const { access_token, refresh_token } = await ApiService.login(email, password);
+      const success = await login(email, password); 
 
-      if (access_token) {
-        localStorage.setItem("token", access_token);
-        
-        if (refresh_token) {
-          localStorage.setItem("refresh_token", refresh_token);
-        }
-
+      if (success) {
         if (rememberMe) {
           localStorage.setItem("rememberMe", "true");
-          // You might want to store email as well for "remember me" functionality
           localStorage.setItem("rememberedEmail", email);
         } else {
           localStorage.removeItem("rememberMe");
           localStorage.removeItem("rememberedEmail");
         }
-
         router.push("/");
       } else {
-        throw new Error("No access token received");
+        setError("Login failed. Please check your credentials.");
       }
     } catch (error: any) {
       setError(error.message || "Login failed. Please check your credentials.");

@@ -80,33 +80,11 @@ export default function SchoolsPage() {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    // // Submit form
-    // const handleSubmit = async () => {
-    //     try {
-    //         // call API to save school
-    //         await ApiService.createSchool(formData);
-    //         setSchools((prev) => [...prev, { ...(formData as School), id: Date.now() }]); // fake ID for UI
-    //         setShowDialog(false);
-    //         setFormData({
-    //             name: "",
-    //             province: "",
-    //             city: "",
-    //             zip_code: "",
-    //             street_address: "",
-    //             is_deleted: false,
-    //         });
-    //     } catch (error) {
-    //         console.error("Error adding school:", error);
-    //     }
-    // };
-
     return (
         <div className="layout-main">
             {/* Page Header */}
             <div className="flex justify-content-between align-items-center mb-4">
-                <div>
-                    <span className="text-600">Manage all registered schools in the system</span>
-                </div>
+                <h2 className="text-xl font-semibold m-0">Schools Directory</h2>
                 <Button
                     label="Add New School"
                     icon="pi pi-plus"
@@ -117,8 +95,9 @@ export default function SchoolsPage() {
 
             {/* Card with Table */}
             <div className="surface-card p-4 border-round shadow-2">
-                {/* Search Bar */}
-                <div className="flex justify-content-end mb-3">
+                {/* Table Header with Search */}
+                <div className="flex justify-content-between align-items-center mb-3">
+                    <h3 className="m-0 text-lg font-medium">All Registered Schools</h3>
                     <span className="p-input-icon-left w-full md:w-20rem">
                         <i className="pi pi-search" />
                         <InputText
@@ -142,8 +121,8 @@ export default function SchoolsPage() {
                     loading={loading}
                 >
                     <Column field="name" header="School Name" sortable />
-                    <Column field="province" header="Province" sortable />
                     <Column field="city" header="City" sortable />
+                    <Column field="province" header="Province" sortable />
                     <Column field="zip_code" header="Zip Code" sortable />
                     <Column field="street_address" header="Street Address" sortable />
                     <Column header="Status" body={statusTemplate} sortable />
@@ -169,12 +148,12 @@ export default function SchoolsPage() {
                         <InputText id="name" name="name" value={formData.name} onChange={handleChange} />
                     </div>
                     <div className="col-6">
-                        <label htmlFor="province">Province</label>
-                        <InputText id="province" name="province" value={formData.province} onChange={handleChange} />
-                    </div>
-                    <div className="col-6">
                         <label htmlFor="city">City</label>
                         <InputText id="city" name="city" value={formData.city} onChange={handleChange} />
+                    </div>
+                    <div className="col-6">
+                        <label htmlFor="province">Province</label>
+                        <InputText id="province" name="province" value={formData.province} onChange={handleChange} />
                     </div>
                     <div className="col-6">
                         <label htmlFor="zip_code">Zip Code</label>
@@ -188,7 +167,6 @@ export default function SchoolsPage() {
 
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancel" icon="pi pi-times" className="p-button-text" onClick={() => setShowDialog(false)} />
-                    {/* <Button label="Save" icon="pi pi-check" className="p-button-primary" onClick={handleSubmit} /> */}
                 </div>
             </Dialog>
         </div>

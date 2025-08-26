@@ -8,6 +8,11 @@ const AppMenu = () => {
             icon: "pi pi-home",
             items: [
                 {
+                    label: "Dashboard",
+                    icon: "pi pi-fw pi-chart-bar",
+                    to: "/dashboard",
+                },
+                {
                     label: "Schools",
                     icon: "pi pi-fw pi-building",
                     to: "/schools",
