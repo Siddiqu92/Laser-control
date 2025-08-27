@@ -81,7 +81,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     textAlign: "center",
     position: 'sticky',
     left: 0,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffffff',
     zIndex: 1
   }}
   bodyStyle={{
@@ -104,7 +104,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     minWidth: "14rem",
     position: 'sticky',
     left: '3rem',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffffff',
     zIndex: 1
   }}
   bodyStyle={{

@@ -33,7 +33,7 @@ export const Filters: React.FC<FiltersProps> = ({
   return (
     <div
       className="flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-3 border-round"
-      style={{ border: "1px solid #e5e7eb", background: "#f8fafc" }}
+      style={{ border: "1px solid #e5e7eb", background: "#ffffffff" }}
     >
       {/* Left side - All filters merged together */}
       <div className="flex gap-3 align-items-center">
@@ -99,7 +99,7 @@ export const Filters: React.FC<FiltersProps> = ({
           icon="pi pi-filter"
           className="p-button-sm"
           onClick={onLoad}
-        />
+        /> 
         <Button
           label="Export"
           icon="pi pi-download"

@@ -8,7 +8,7 @@ import { DashboardData, StatusValue, Student, Lesson } from "./types";
 import { getFilteredStudents } from "./utils";
 import { Filters } from "./Filters";
 import { StudentTable } from "./StudentTable";
-import { Pagination } from "./Pagination";
+import {  Pagination } from "./Pagination";
 
 export default function SchoolDashboard() {
   const [programs, setPrograms] = useState<any[]>([]);
@@ -238,35 +238,39 @@ export default function SchoolDashboard() {
               }}
             />
           </div>
-
-    {/* Combined Header and Table Container */}
-<div className="mb-4" style={{ border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-  {/* Search and Info Header */}
-  <div className="p-3" style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
-    <div className="flex justify-content-between align-items-center">
-      {/* Course Info (now on the left) */}
-      <div className="text-mg font-bold">
-        Course: {loadedCourseName || "None"} 
-        <span className="mx-2">|</span> 
-        Total Students: {filteredStudents.length}
-      </div>
-
-      {/* Search bar (now on the right) */}
-      <div className="flex align-items-center">
-        <span className="p-input-icon-left">
-          <i className="pi pi-search" />
-          <InputText
-            value={globalFilterValue}
-            onChange={onGlobalFilterChange}
-            placeholder="Keyword Search"
-            style={{ width: '250px' }}
-          />
-        </span>
-      </div>
+{/* Combined Header and Table Container */}
+<div className="mb-4" style={{ borderRadius: '6px' }}>
+  
+  {/* Course Info - Top Line */}
+  <div className="p-2">
+    <div className="text-md font-bold text-900">
+      {loadedCourseName || "None"}
     </div>
   </div>
 
-  {/* Student Table - directly attached to header */}
+  {/* Heading + Search Bar */}
+  <div className="p-3 flex justify-content-between align-items-center">
+    {/* Heading */}
+   <h3 className="text-lg font-semibold text-black m-0">
+  Student Progress Overview
+</h3>
+
+
+    {/* Search bar */}
+    <div className="flex align-items-center">
+      <span className="p-input-icon-left">
+        <i className="pi pi-search" />
+        <InputText
+          value={globalFilterValue}
+          onChange={onGlobalFilterChange}
+          placeholder="Keyword Search"
+          style={{ width: '250px' }}
+        />
+      </span>
+    </div>
+  </div>
+
+  {/* Student Table */}
   <div>
     <StudentTable
       students={currentPageStudents}
@@ -279,15 +283,17 @@ export default function SchoolDashboard() {
   </div>
 </div>
 
-          {/* Single Paginator at the bottom */}
-          {filteredStudents.length > 0 && (
-            <Pagination
-              first={first}
-              rows={rows}
-              totalRecords={filteredStudents.length}
-              onPageChange={onPageChange}
-            />
-          )}
+{/* Single Paginator at the bottom */}
+{filteredStudents.length > 0 && (
+  <Pagination
+    first={first}
+    rows={rows}
+    totalRecords={filteredStudents.length}
+    onPageChange={onPageChange}
+  />
+)}
+
+
         </div>
       </div>
 

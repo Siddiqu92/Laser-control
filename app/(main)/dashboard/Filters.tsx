@@ -32,11 +32,11 @@ export const Filters: React.FC<FiltersProps> = ({
 }) => {
   return (
     <div
-      className="flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-3 border-round"
-      style={{ border: "1px solid #e5e7eb", background: "#f8fafc" }}
+      className="flex justify-content-end align-items-center flex-wrap gap-3 mb-4 p-3 border-round"
+      style={{ border: "1px solid #e5e7eb", background: "#ffffffff" }}
     >
-      {/* Left side - All filters merged together */}
-      <div className="flex gap-3 align-items-center">
+      {/* Right side - Filters + Buttons together */}
+      <div className="flex gap-3 align-items-center flex-wrap">
         {/* Grade Dropdown */}
         <Dropdown
           id="grade"
@@ -62,8 +62,8 @@ export const Filters: React.FC<FiltersProps> = ({
           style={{ width: "200px" }}
         />
 
-        {/* Status Filters - Now placed right after dropdowns */}
-        <div className="flex gap-3 align-items-center ml-2">
+        {/* Status Filters */}
+        <div className="flex gap-3 align-items-center">
           {[
             { label: "Completed", value: "completed" as StatusValue },
             { label: "In Progress", value: "in-progress" as StatusValue },
@@ -90,10 +90,8 @@ export const Filters: React.FC<FiltersProps> = ({
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Right side - Buttons */}
-      <div className="flex gap-2 align-items-center">
+        {/* Buttons */}
         <Button
           label="Load"
           icon="pi pi-filter"

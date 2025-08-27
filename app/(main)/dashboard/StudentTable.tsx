@@ -72,51 +72,50 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       emptyMessage="No students found."
       tableStyle={{ minWidth: "65rem" }}
     >
-     {/* Index Column - Sticky */}
-<Column
-  header="#"
-  body={indexTemplate}
-  headerStyle={{ 
-    minWidth: "3rem", 
-    textAlign: "center",
-    position: 'sticky',
-    left: 0,
-    backgroundColor: '#f8fafc',
-    zIndex: 1
-  }}
-  bodyStyle={{
-    minWidth: "3rem",
-    textAlign: "center",
-    position: 'sticky',
-    left: 0,
-    backgroundColor: 'white',
-    zIndex: 1
-  }}
-  frozen
-/>
+      {/* Index Column - Sticky */}
+      <Column
+        header="#"
+        body={indexTemplate}
+        headerStyle={{
+          minWidth: "3rem",
+          textAlign: "center",
+          position: "sticky",
+          left: 0,
+          backgroundColor: "white", 
+          zIndex: 2,
+        }}
+        bodyStyle={{
+          minWidth: "3rem",
+          textAlign: "center",
+          position: "sticky",
+          left: 0,
+          backgroundColor: "white", 
+          zIndex: 1,
+        }}
+        frozen
+      />
 
-{/* Student Name - Sticky */}
-<Column
-  field="name"
-  header="Student"
-  body={studentTemplate}
-  headerStyle={{ 
-    minWidth: "14rem",
-    position: 'sticky',
-    left: '3rem',
-    backgroundColor: '#f8fafc',
-    zIndex: 1
-  }}
-  bodyStyle={{
-    minWidth: "14rem",
-    position: 'sticky',
-    left: '3rem',
-    backgroundColor: 'white',
-    zIndex: 1
-  }}
-  frozen
-/>
-
+      {/* Student Name - Sticky */}
+      <Column
+        field="name"
+        header="Student"
+        body={studentTemplate}
+        headerStyle={{
+          minWidth: "14rem",
+          position: "sticky",
+          left: "3rem",
+          backgroundColor: "white", 
+          zIndex: 2,
+        }}
+        bodyStyle={{
+          minWidth: "14rem",
+          position: "sticky",
+          left: "3rem",
+          backgroundColor: "white", 
+          zIndex: 1,
+        }}
+        frozen
+      />
 
       {/* Lessons */}
       {lessons.map((lesson) => (
@@ -132,6 +131,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           body={(student: Student) => lessonTemplate(lesson, student)}
           style={{ minWidth: "12rem", textAlign: "center" }}
           headerTooltip={lesson.name}
+          headerStyle={{
+            backgroundColor: "white", 
+          }}
         />
       ))}
     </DataTable>

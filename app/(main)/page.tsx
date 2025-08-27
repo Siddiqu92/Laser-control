@@ -242,7 +242,7 @@ export default function SchoolDashboard() {
     {/* Combined Header and Table Container */}
 <div className="mb-4" style={{ border: '1px solid #e5e7eb', borderRadius: '6px' }}>
   {/* Search and Info Header */}
-  <div className="p-3" style={{ background: '#f8fafc', borderBottom: '1px solid #e5e7eb' }}>
+  <div className="p-3" style={{ background: '#ffffffff', borderBottom: '1px solid #e5e7eb' }}>
     <div className="flex justify-content-between align-items-center">
       {/* Course Info (now on the left) */}
       <div className="text-mg font-bold">

@@ -18,7 +18,7 @@ export const Pagination: React.FC<PaginationProps> = ({
     <div className="">
       <Paginator
         first={first}
-        rows={rows}
+        rows={rows} 
         totalRecords={totalRecords}
         rowsPerPageOptions={[5, 10, 25, 50]}
         onPageChange={onPageChange}
