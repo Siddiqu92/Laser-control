@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
-import { ProgressSpinner } from "primereact/progressspinner"; 
+import { ProgressSpinner } from "primereact/progressspinner";
 import { StatusValue } from "./types";
 
 interface FiltersProps {
@@ -16,7 +16,7 @@ interface FiltersProps {
     grades: { label: string; value: string }[];
     subjects: { label: string; value: string; courseId: string }[];
   };
-  onLoad: (courseName: string | null) => Promise<void> | void; 
+  onLoad: (courseName: string | null) => Promise<void> | void;
   loadedCourseName: string | null;
 }
 
@@ -30,8 +30,7 @@ export const Filters: React.FC<FiltersProps> = ({
   onLoad,
   loadedCourseName,
 }) => {
-  const [loading, setLoading] = useState(false); 
-
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (selectedGrade && filterOptions.subjects.length > 0) {
@@ -52,17 +51,16 @@ export const Filters: React.FC<FiltersProps> = ({
       ? `${selectedGrade} ${subj.label}`
       : `${selectedGrade} ${selectedSubject}`;
 
-    setLoading(true); 
+    setLoading(true);
     try {
-      await onLoad(courseName); 
+      await onLoad(courseName);
     } finally {
-      setTimeout(() => setLoading(false), 500); 
+      setTimeout(() => setLoading(false), 500);
     }
   };
 
   return (
     <div className="surface-card border-1 surface-border border-round p-3 mb-4">
-      {/* Top row: Course Info (left) + Filters (right) */}
       <div className="flex justify-content-between align-items-center flex-wrap gap-3">
         {/* Course Info */}
         <div className="text-mg font-bold text-900">
@@ -78,7 +76,7 @@ export const Filters: React.FC<FiltersProps> = ({
             value={selectedGrade}
             onChange={(e) => setSelectedGrade(e.value)}
             placeholder="Select Grade"
-            className="w-10rem"
+            className="w-10rem h-3rem"
           />
 
           {/* Subject Dropdown */}
@@ -93,7 +91,7 @@ export const Filters: React.FC<FiltersProps> = ({
             }}
             placeholder="Select Subject"
             disabled={!selectedGrade || filterOptions.subjects.length === 0}
-            className="w-12rem"
+            className="w-12rem h-3rem"
           />
 
           {/* Buttons / Loader */}
@@ -111,6 +109,7 @@ export const Filters: React.FC<FiltersProps> = ({
                 icon="pi pi-filter"
                 size="small"
                 onClick={handleLoad}
+                className="h-3rem"
               />
             )}
           </div>

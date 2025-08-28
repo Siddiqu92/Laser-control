@@ -179,7 +179,35 @@ export default function SchoolDashboard() {
             {/* Left side - Heading */}
             <h5 className="">Teacher Dashboard</h5>
 
-            {/* Right side - Legend */}
+          
+          </div>
+
+          {/* Filters Section */}
+          <div className="mb-4">
+<Filters
+  selectedGrade={selectedGrade}
+  setSelectedGrade={setSelectedGrade}
+  selectedSubject={selectedSubject}
+  setSelectedSubject={setSelectedSubject}
+  setSelectedCourseId={setSelectedCourseId}
+  selectedStatuses={selectedStatuses}
+  setSelectedStatuses={setSelectedStatuses}
+  filterOptions={filterOptions}
+  loadedCourseName={loadedCourseName}
+  onLoad={(courseName) => {
+    if (selectedCourseId && selectedSubject) {
+      fetchDashboardData(selectedCourseId, selectedSubject);
+      setLoadedCourseName(courseName); 
+    } else {
+      setDashboardData({ lessons: [], students: [] });
+      setLoadedCourseName(null);
+    }
+  }}
+/>
+
+          </div>
+
+  {/* Right side - Legend */}
             <div className="flex gap-4">
               <div className="flex align-items-center gap-2">
                 <span 
@@ -203,7 +231,7 @@ export default function SchoolDashboard() {
                 }}>
                   50%
                 </span>
-                <span style={{ color: "#495057", fontSize: "0.9rem" }}>In Progress</span>
+                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Attempted</span>
               </div>
               <div className="flex align-items-center gap-2">
                 <span 
@@ -213,61 +241,6 @@ export default function SchoolDashboard() {
                 <span style={{ color: "#495057", fontSize: "0.9rem" }}>Not Started</span>
               </div>
             </div>
-          </div>
-
-          {/* Filters Section */}
-          <div className="mb-4">
-<Filters
-  selectedGrade={selectedGrade}
-  setSelectedGrade={setSelectedGrade}
-  selectedSubject={selectedSubject}
-  setSelectedSubject={setSelectedSubject}
-  setSelectedCourseId={setSelectedCourseId}
-  selectedStatuses={selectedStatuses}
-  setSelectedStatuses={setSelectedStatuses}
-  filterOptions={filterOptions}
-  loadedCourseName={loadedCourseName}
-  onLoad={(courseName) => {
-    if (selectedCourseId && selectedSubject) {
-      fetchDashboardData(selectedCourseId, selectedSubject);
-      setLoadedCourseName(courseName); // 👈 ab course info show karega
-    } else {
-      setDashboardData({ lessons: [], students: [] });
-      setLoadedCourseName(null);
-    }
-  }}
-/>
-
-          </div>
-
-{/* Status Filters  */}
-<div className="flex justify-end mt-3 mb-4 flex-wrap gap-4">
-  {[
-    { label: "Completed", value: "completed" as StatusValue },
-    { label: "In Progress", value: "in-progress" as StatusValue },
-    { label: "Not Started", value: "not-started" as StatusValue },
-  ].map((status) => (
-    <div key={status.value} className="flex items-center gap-2">
-      <Checkbox
-        inputId={status.value}
-        checked={selectedStatuses.includes(status.value)}
-        onChange={(e) =>
-          setSelectedStatuses(
-            e.checked
-              ? [...selectedStatuses, status.value]
-              : selectedStatuses.filter((s) => s !== status.value)
-          )
-        }
-      />
-      <label
-        htmlFor={status.value}
-        className="text-sm text-color-secondary whitespace-nowrap cursor-pointer"
-      >
-        {status.label}
-      </label>
-    </div>
-  ))}
-</div>
 
 {/* Student Table */}
 <div className="mt-4">

@@ -33,7 +33,6 @@ export default function StudentProgress({
   topics,
   studentName = "Student",
 }: StudentProgressProps) {
-  // Flatten: topic + activities
   const rows = topics.flatMap((topic) =>
     topic.activities.map((activity) => ({
       topicTitle: topic.topic_title,
@@ -41,17 +40,53 @@ export default function StudentProgress({
     }))
   );
 
-  // Format date (YYYY-MM-DD HH:mm)
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return "NOT READ";
+    if (!dateString) return ""; // "NOT READ" ko hata kar blank
     try {
       const date = new Date(dateString);
-      return `${date.toISOString().split("T")[0]} ${date
-        .toTimeString()
-        .split(" ")[0]
-        .slice(0, 5)}`;
+      return new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }).format(date);
     } catch {
       return dateString;
+    }
+  };
+
+  const renderStatus = (rowData: Activity) => {
+    if (rowData.progress === "100%") {
+      return (
+        <div className="flex justify-center items-center">
+          <i className="pi pi-check-circle text-green-500 text-lg"></i>
+        </div>
+      );
+    } else if (rowData.progress === "0%" || !rowData.progress) {
+      return (
+        <div className="flex justify-center items-center">
+          <i className="pi pi-times-circle text-red-500 text-lg"></i>
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex justify-center items-center">
+          <span
+            className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
+            style={{
+              background: "rgb(255, 251, 235)",
+              color: "rgb(217, 119, 6)",
+              border: "1px solid rgba(217, 119, 6, 0.125)",
+              minWidth: "2.5rem",
+            }}
+          >
+            {rowData.progress}
+          </span>
+        </div>
+      );
     }
   };
 
@@ -85,11 +120,16 @@ export default function StudentProgress({
             <span className="font-bold">{data.topicTitle}</span>
           )}
         >
-          <Column field="title" header="Activity" style={{ minWidth: "300px" }} />
+          <Column field="title" header="Activity" style={{ minWidth: "250px" }} />
           <Column
-            header="Read Status"
+            header="Status"
+            body={renderStatus}
+            style={{ width: "150px", textAlign: "center" }}
+          />
+          <Column
+            header="Attempted"
             body={(rowData) => formatDate(rowData.last_read)}
-            style={{ minWidth: "200px" }}
+            style={{ minWidth: "250px" }}
           />
         </DataTable>
       )}
