@@ -23,7 +23,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 }) => {
   const studentTemplate = (student: Student) => {
     return (
-      <span className="text-gray-800">
+      <span className="text-color">
         {student.first_name} {student.last_name}
       </span>
     );
@@ -40,8 +40,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         onClick={() =>
           clickable ? onCellClick(student.id, lesson.id, lesson.type) : undefined
         }
-        className={`flex justify-center items-center ${
-          clickable ? "cursor-pointer hover:text-blue-600" : ""
+        className={`flex justify-content-center align-items-center ${
+          clickable ? "cursor-pointer hover:text-primary" : ""
         }`}
       >
         {progress ? getProgressIcon(progress.progress) : "—"}
@@ -51,7 +51,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
   const indexTemplate = (_: any, options: any) => {
     return (
-      <span className="text-gray-700">
+      <span className="text-color-secondary">
         {first + options.rowIndex + 1}
       </span>
     );
@@ -70,9 +70,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       loading={loading}
       responsiveLayout="scroll"
       emptyMessage="No students found."
-      tableStyle={{ minWidth: "65rem" }}
+      tableStyle={{ minWidth: "70rem" }}
+      className="p-datatable-sm"
+      sortField="first_name"   
+      sortOrder={1}            
     >
-      {/* Index Column - Sticky */}
+      {/* Index Column */}
       <Column
         header="#"
         body={indexTemplate}
@@ -81,7 +84,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           textAlign: "center",
           position: "sticky",
           left: 0,
-          backgroundColor: "white", 
+          background: "var(--surface-card)",
+          color: "var(--text-color)",
           zIndex: 2,
         }}
         bodyStyle={{
@@ -89,50 +93,64 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           textAlign: "center",
           position: "sticky",
           left: 0,
-          backgroundColor: "white", 
+          background: "var(--surface-card)",
+          color: "var(--text-color)",
           zIndex: 1,
         }}
         frozen
       />
 
-      {/* Student Name - Sticky */}
+      {/* Student Name */}
       <Column
-        field="name"
+        field="first_name"
         header="Student"
         body={studentTemplate}
+        sortable
         headerStyle={{
           minWidth: "14rem",
           position: "sticky",
           left: "3rem",
-          backgroundColor: "white", 
+          background: "var(--surface-card)",
+          color: "var(--text-color)",
           zIndex: 2,
         }}
         bodyStyle={{
           minWidth: "14rem",
           position: "sticky",
           left: "3rem",
-          backgroundColor: "white", 
+          background: "var(--surface-card)",
+          color: "var(--text-color)",
           zIndex: 1,
         }}
         frozen
       />
 
-      {/* Lessons */}
+      {/* Lessons with type in header */}
       {lessons.map((lesson) => (
         <Column
           key={lesson.id}
           header={
-            <div className="text-center">
-              {lesson.name.length > 20
-                ? `${lesson.name.substring(0, 10)}...`
-                : lesson.name}
+            <div className="text-center white-space-nowrap overflow-hidden text-overflow-ellipsis">
+              <div className="font-medium">{lesson.name}</div>
+              <small className="text-color-secondary text-xs">
+                {lesson.type === "learning_object"
+                  ? "Learning Object"
+                  : lesson.type === "assessment"
+                  ? "Assessment"
+                  : lesson.type === "exam"
+                  ? "Exam"
+                  : lesson.type === "fun_activity"
+                  ? "Fun Activity"
+                  : lesson.type}
+              </small>
             </div>
           }
           body={(student: Student) => lessonTemplate(lesson, student)}
           style={{ minWidth: "12rem", textAlign: "center" }}
-          headerTooltip={lesson.name}
+          headerTooltip={`${lesson.name} (${lesson.type})`}
           headerStyle={{
-            backgroundColor: "white", 
+            background: "var(--surface-card)",
+            color: "var(--text-color)",
           }}
         />
       ))}

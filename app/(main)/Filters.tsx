@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Dropdown } from "primereact/dropdown";
-import { Checkbox } from "primereact/checkbox";
 import { Button } from "primereact/button";
+import { ProgressSpinner } from "primereact/progressspinner"; 
 import { StatusValue } from "./types";
 
 interface FiltersProps {
@@ -16,7 +16,8 @@ interface FiltersProps {
     grades: { label: string; value: string }[];
     subjects: { label: string; value: string; courseId: string }[];
   };
-  onLoad: () => void;
+  onLoad: (courseName: string | null) => Promise<void> | void; 
+  loadedCourseName: string | null;
 }
 
 export const Filters: React.FC<FiltersProps> = ({
@@ -25,86 +26,95 @@ export const Filters: React.FC<FiltersProps> = ({
   selectedSubject,
   setSelectedSubject,
   setSelectedCourseId,
-  selectedStatuses,
-  setSelectedStatuses,
   filterOptions,
   onLoad,
+  loadedCourseName,
 }) => {
+  const [loading, setLoading] = useState(false); 
+
+
+  useEffect(() => {
+    if (selectedGrade && filterOptions.subjects.length > 0) {
+      const firstSubject = filterOptions.subjects[0];
+      setSelectedSubject(firstSubject.value);
+      setSelectedCourseId(firstSubject.courseId);
+    }
+  }, [selectedGrade, filterOptions.subjects, setSelectedSubject, setSelectedCourseId]);
+
+  const handleLoad = async () => {
+    if (!selectedGrade || !selectedSubject) {
+      onLoad(null);
+      return;
+    }
+
+    const subj = filterOptions.subjects.find((s) => s.value === selectedSubject);
+    const courseName = subj
+      ? `${selectedGrade} ${subj.label}`
+      : `${selectedGrade} ${selectedSubject}`;
+
+    setLoading(true); 
+    try {
+      await onLoad(courseName); 
+    } finally {
+      setTimeout(() => setLoading(false), 500); 
+    }
+  };
+
   return (
-    <div
-      className="flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-3 border-round"
-      style={{ border: "1px solid #e5e7eb", background: "#ffffffff" }}
-    >
-      {/* Left side - All filters merged together */}
-      <div className="flex gap-3 align-items-center">
-        {/* Grade Dropdown */}
-        <Dropdown
-          id="grade"
-          options={filterOptions.grades}
-          value={selectedGrade}
-          onChange={(e) => setSelectedGrade(e.value)}
-          placeholder="Grade"
-          style={{ width: "150px" }}
-        />
-
-        {/* Subject Dropdown */}
-        <Dropdown
-          id="subject"
-          options={filterOptions.subjects}
-          value={selectedSubject}
-          onChange={(e) => {
-            setSelectedSubject(e.value);
-            const subj = filterOptions.subjects.find((s) => s.value === e.value);
-            setSelectedCourseId(subj?.courseId || null);
-          }}
-          placeholder="Subject"
-          disabled={!selectedGrade || filterOptions.subjects.length === 0}
-          style={{ width: "200px" }}
-        />
-
-        {/* Status Filters - Now placed right after dropdowns */}
-        <div className="flex gap-3 align-items-center ml-2">
-          {[
-            { label: "Completed", value: "completed" as StatusValue },
-            { label: "In Progress", value: "in-progress" as StatusValue },
-            { label: "Not Started", value: "not-started" as StatusValue },
-          ].map((status) => (
-            <div key={status.value} className="flex align-items-center gap-1">
-              <Checkbox
-                inputId={status.value}
-                checked={selectedStatuses.includes(status.value)}
-                onChange={() =>
-                  setSelectedStatuses(
-                    selectedStatuses.includes(status.value)
-                      ? selectedStatuses.filter((s) => s !== status.value)
-                      : [...selectedStatuses, status.value]
-                  )
-                }
-              />
-              <label
-                htmlFor={status.value}
-                className="text-sm whitespace-nowrap"
-              >
-                {status.label}
-              </label>
-            </div>
-          ))}
+    <div className="surface-card border-1 surface-border border-round p-3 mb-4">
+      {/* Top row: Course Info (left) + Filters (right) */}
+      <div className="flex justify-content-between align-items-center flex-wrap gap-3">
+        {/* Course Info */}
+        <div className="text-mg font-bold text-900">
+          {loadedCourseName || "No Course Selected"}
         </div>
-      </div>
 
-      {/* Right side - Buttons */}
-      <div className="flex gap-2 align-items-center">
-        <Button
-          label="Load"
-          icon="pi pi-filter"
-          className="p-button-sm"
-          onClick={onLoad}
-        /> 
-        <Button
-          label="Export"
-          icon="pi pi-download"
-          className="p-button-sm p-button-outlined"
-        />
+        {/* Filters and Buttons */}
+        <div className="flex align-items-center flex-wrap gap-3">
+          {/* Grade Dropdown */}
+          <Dropdown
+            id="grade"
+            options={filterOptions.grades}
+            value={selectedGrade}
+            onChange={(e) => setSelectedGrade(e.value)}
+            placeholder="Select Grade"
+            className="w-10rem"
+          />
+
+          {/* Subject Dropdown */}
+          <Dropdown
+            id="subject"
+            options={filterOptions.subjects}
+            value={selectedSubject}
+            onChange={(e) => {
+              setSelectedSubject(e.value);
+              const subj = filterOptions.subjects.find((s) => s.value === e.value);
+              setSelectedCourseId(subj?.courseId || null);
+            }}
+            placeholder="Select Subject"
+            disabled={!selectedGrade || filterOptions.subjects.length === 0}
+            className="w-12rem"
+          />
+
+          {/* Buttons / Loader */}
+          <div className="flex gap-2 align-self-end">
+            {loading ? (
+              <ProgressSpinner
+                style={{ width: "30px", height: "30px" }}
+                strokeWidth="6"
+                fill="var(--surface-ground)"
+                animationDuration=".5s"
+              />
+            ) : (
+              <Button
+                label="Load"
+                icon="pi pi-filter"
+                size="small"
+                onClick={handleLoad}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

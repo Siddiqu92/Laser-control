@@ -6,9 +6,10 @@ import { InputText } from "primereact/inputtext";
 import StudentProgress from "./StudentProgress";
 import { DashboardData, StatusValue, Student, Lesson } from "./types";
 import { getFilteredStudents } from "./utils";
+import { Checkbox } from "primereact/checkbox";
 import { Filters } from "./Filters";
 import { StudentTable } from "./StudentTable";
-import {  Pagination } from "./Pagination";
+import { Pagination } from "./Pagination";
 
 export default function SchoolDashboard() {
   const [programs, setPrograms] = useState<any[]>([]);
@@ -27,7 +28,13 @@ export default function SchoolDashboard() {
   const [activeStudent, setActiveStudent] = useState<string | null>(null);
   const [loadedCourseName, setLoadedCourseName] = useState<string | null>(null);
 
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<any>({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    name: {
+      operator: FilterOperator.AND,
+      constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }],
+    },
+  });
   const [globalFilterValue, setGlobalFilterValue] = useState("");
 
   useEffect(() => {
@@ -116,10 +123,12 @@ export default function SchoolDashboard() {
     setSelectedCourseId(null);
   }, [selectedGrade]);
 
-  const filteredStudents: Student[] = getFilteredStudents(
-    dashboardData?.students || [],
-    selectedStatuses
-  );
+  const filteredStudents: Student[] = useMemo(() => {
+    return getFilteredStudents(
+      dashboardData?.students || [],
+      selectedStatuses
+    );
+  }, [dashboardData?.students, selectedStatuses]);
 
   const sortedLessons: Lesson[] = useMemo(() => {
     if (!dashboardData?.lessons) return [];
@@ -133,20 +142,9 @@ export default function SchoolDashboard() {
     setRows(event.rows);
   };
 
-  const currentPageStudents = filteredStudents.slice(first, first + rows);
-
-  const initFilters = () => {
-    setFilters({
-      global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-      name: {
-        operator: FilterOperator.AND,
-        constraints: [
-          { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        ],
-      }
-    });
-    setGlobalFilterValue("");
-  };
+  const currentPageStudents = useMemo(() => {
+    return filteredStudents.slice(first, first + rows);
+  }, [filteredStudents, first, rows]);
 
   const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -219,81 +217,80 @@ export default function SchoolDashboard() {
 
           {/* Filters Section */}
           <div className="mb-4">
-            <Filters
-              selectedGrade={selectedGrade}
-              setSelectedGrade={setSelectedGrade}
-              selectedSubject={selectedSubject}
-              setSelectedSubject={setSelectedSubject}
-              setSelectedCourseId={setSelectedCourseId}
-              selectedStatuses={selectedStatuses}
-              setSelectedStatuses={setSelectedStatuses}
-              filterOptions={filterOptions}
-              onLoad={() => {
-                if (selectedCourseId && selectedSubject) {
-                  fetchDashboardData(selectedCourseId, selectedSubject);
-                } else {
-                  setDashboardData({ lessons: [], students: [] });
-                  setLoadedCourseName(null);
-                }
-              }}
-            />
+<Filters
+  selectedGrade={selectedGrade}
+  setSelectedGrade={setSelectedGrade}
+  selectedSubject={selectedSubject}
+  setSelectedSubject={setSelectedSubject}
+  setSelectedCourseId={setSelectedCourseId}
+  selectedStatuses={selectedStatuses}
+  setSelectedStatuses={setSelectedStatuses}
+  filterOptions={filterOptions}
+  loadedCourseName={loadedCourseName}
+  onLoad={(courseName) => {
+    if (selectedCourseId && selectedSubject) {
+      fetchDashboardData(selectedCourseId, selectedSubject);
+      setLoadedCourseName(courseName); // 👈 ab course info show karega
+    } else {
+      setDashboardData({ lessons: [], students: [] });
+      setLoadedCourseName(null);
+    }
+  }}
+/>
+
           </div>
-{/* Combined Header and Table Container */}
-<div className="mb-4" style={{ borderRadius: '6px' }}>
-  
-  {/* Course Info - Top Line */}
-  <div className="p-2">
-    <div className="text-md font-bold text-900">
-      {loadedCourseName || "None"}
+
+{/* Status Filters  */}
+<div className="flex justify-end mt-3 mb-4 flex-wrap gap-4">
+  {[
+    { label: "Completed", value: "completed" as StatusValue },
+    { label: "In Progress", value: "in-progress" as StatusValue },
+    { label: "Not Started", value: "not-started" as StatusValue },
+  ].map((status) => (
+    <div key={status.value} className="flex items-center gap-2">
+      <Checkbox
+        inputId={status.value}
+        checked={selectedStatuses.includes(status.value)}
+        onChange={(e) =>
+          setSelectedStatuses(
+            e.checked
+              ? [...selectedStatuses, status.value]
+              : selectedStatuses.filter((s) => s !== status.value)
+          )
+        }
+      />
+      <label
+        htmlFor={status.value}
+        className="text-sm text-color-secondary whitespace-nowrap cursor-pointer"
+      >
+        {status.label}
+      </label>
     </div>
-  </div>
-
-  {/* Heading + Search Bar */}
-  <div className="p-3 flex justify-content-between align-items-center">
-    {/* Heading */}
-   <h3 className="text-lg font-semibold text-black m-0">
-  Student Progress Overview
-</h3>
-
-
-    {/* Search bar */}
-    <div className="flex align-items-center">
-      <span className="p-input-icon-left">
-        <i className="pi pi-search" />
-        <InputText
-          value={globalFilterValue}
-          onChange={onGlobalFilterChange}
-          placeholder="Keyword Search"
-          style={{ width: '250px' }}
-        />
-      </span>
-    </div>
-  </div>
-
-  {/* Student Table */}
-  <div>
-    <StudentTable
-      students={currentPageStudents}
-      lessons={sortedLessons}
-      first={first}
-      loading={loading}
-      filters={filters}
-      onCellClick={onCellClick}
-    />
-  </div>
+  ))}
 </div>
 
-{/* Single Paginator at the bottom */}
-{filteredStudents.length > 0 && (
-  <Pagination
+{/* Student Table */}
+<div className="mt-4">
+  <StudentTable
+    students={currentPageStudents}
+    lessons={sortedLessons}
     first={first}
-    rows={rows}
-    totalRecords={filteredStudents.length}
-    onPageChange={onPageChange}
+    loading={loading}
+    filters={filters}
+    onCellClick={onCellClick}
   />
-)}
+</div>
 
 
+          {/* Single Paginator at the bottom */}
+          {filteredStudents.length > 0 && (
+            <Pagination
+              first={first}
+              rows={rows}
+              totalRecords={filteredStudents.length}
+              onPageChange={onPageChange}
+            />
+          )}
         </div>
       </div>
 
