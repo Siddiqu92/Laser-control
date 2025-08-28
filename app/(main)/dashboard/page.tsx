@@ -2,14 +2,21 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ApiService } from "@/service/api";
 import { FilterMatchMode, FilterOperator } from "primereact/api";
-import { InputText } from "primereact/inputtext";
 import StudentProgress from "./StudentProgress";
 import { DashboardData, StatusValue, Student, Lesson } from "./types";
 import { getFilteredStudents } from "./utils";
-import { Checkbox } from "primereact/checkbox";
 import { Filters } from "./Filters";
 import { StudentTable } from "./StudentTable";
 import { Pagination } from "./Pagination";
+
+type ProgressMeta = {
+  studentId: string;
+  studentName: string;
+  lessonId: number;
+  lessonName: string;
+  lessonType: string; // learning_object | assessment | exam | fun_activity | ...
+  obtained?: number | null; // % from table cell, if available
+};
 
 export default function SchoolDashboard() {
   const [programs, setPrograms] = useState<any[]>([]);
@@ -22,12 +29,13 @@ export default function SchoolDashboard() {
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10);
 
+  // popup state
   const [progressVisible, setProgressVisible] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
   const [progressTopics, setProgressTopics] = useState<any[]>([]);
-  const [activeStudent, setActiveStudent] = useState<string | null>(null);
-  const [loadedCourseName, setLoadedCourseName] = useState<string | null>(null);
+  const [progressMeta, setProgressMeta] = useState<ProgressMeta | null>(null);
 
+  // datatable filters (kept from your code)
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     name: {
@@ -35,7 +43,6 @@ export default function SchoolDashboard() {
       constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }],
     },
   });
-  const [globalFilterValue, setGlobalFilterValue] = useState("");
 
   useEffect(() => {
     async function fetchPrograms() {
@@ -56,7 +63,6 @@ export default function SchoolDashboard() {
       setLoading(true);
       const data = await ApiService.getStudentDashboard(courseId);
       setDashboardData(data || { lessons: [], students: [] });
-      setLoadedCourseName(courseName);
       setFirst(0);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
@@ -70,6 +76,7 @@ export default function SchoolDashboard() {
       setProgressLoading(true);
       setProgressVisible(true);
       const response = await ApiService.getStudentProgress(studentId, lessonId);
+      // your api returns res.data.data → service already unwraps .data
       const topicsData = response?.data || response || [];
       setProgressTopics(topicsData);
     } catch (err) {
@@ -80,6 +87,7 @@ export default function SchoolDashboard() {
     }
   };
 
+  // preselect first grade/subject
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -124,10 +132,7 @@ export default function SchoolDashboard() {
   }, [selectedGrade]);
 
   const filteredStudents: Student[] = useMemo(() => {
-    return getFilteredStudents(
-      dashboardData?.students || [],
-      selectedStatuses
-    );
+    return getFilteredStudents(dashboardData?.students || [], selectedStatuses);
   }, [dashboardData?.students, selectedStatuses]);
 
   const sortedLessons: Lesson[] = useMemo(() => {
@@ -146,20 +151,10 @@ export default function SchoolDashboard() {
     return filteredStudents.slice(first, first + rows);
   }, [filteredStudents, first, rows]);
 
-  const onGlobalFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    let _filters = { ...filters };
-    (_filters["global"] as any).value = value;
-
-    setFilters(_filters);
-    setGlobalFilterValue(value);
-  };
-
-  const onCellClick = (studentId: string, lessonId: number, type: string) => {
-    if (type === "learning_object") {
-      setActiveStudent(studentId);
-      fetchStudentProgress(studentId, lessonId);
-    }
+  // ✅ unified click handler for ALL lesson types
+  const openProgressFromCell = (payload: ProgressMeta) => {
+    setProgressMeta(payload);
+    fetchStudentProgress(payload.studentId, payload.lessonId);
   };
 
   if (loading)
@@ -173,46 +168,40 @@ export default function SchoolDashboard() {
     <div className="grid">
       <div className="col-12">
         <div className="card shadow-2 p-4">
-          
-          {/* Header with Legend aligned left & right */}
+          {/* Header */}
           <div className="flex justify-content-between align-items-center mb-4">
-            {/* Left side - Heading */}
             <h5 className="">Teacher Dashboard</h5>
-
-          
           </div>
 
-          {/* Filters Section */}
+          {/* Filters */}
           <div className="mb-4">
-<Filters
-  selectedGrade={selectedGrade}
-  setSelectedGrade={setSelectedGrade}
-  selectedSubject={selectedSubject}
-  setSelectedSubject={setSelectedSubject}
-  setSelectedCourseId={setSelectedCourseId}
-  selectedStatuses={selectedStatuses}
-  setSelectedStatuses={setSelectedStatuses}
-  filterOptions={filterOptions}
-  loadedCourseName={loadedCourseName}
-  onLoad={(courseName) => {
-    if (selectedCourseId && selectedSubject) {
-      fetchDashboardData(selectedCourseId, selectedSubject);
-      setLoadedCourseName(courseName); 
-    } else {
-      setDashboardData({ lessons: [], students: [] });
-      setLoadedCourseName(null);
-    }
-  }}
-/>
-
+            <Filters
+              selectedGrade={selectedGrade}
+              setSelectedGrade={setSelectedGrade}
+              selectedSubject={selectedSubject}
+              setSelectedSubject={setSelectedSubject}
+              setSelectedCourseId={setSelectedCourseId}
+              selectedStatuses={selectedStatuses}
+              setSelectedStatuses={setSelectedStatuses}
+              filterOptions={filterOptions}
+              loadedCourseName={selectedSubject}
+              onLoad={(courseName) => {
+                if (selectedCourseId && selectedSubject) {
+                  fetchDashboardData(selectedCourseId, selectedSubject);
+                } else {
+                  setDashboardData({ lessons: [], students: [] });
+                }
+              }}
+            />
           </div>
 
-  {/* Right side - Legend */}
+
+            {/* Right side - Legend */}
             <div className="flex gap-4">
               <div className="flex align-items-center gap-2">
                 <span 
                   className="pi pi-check-circle text-green-500" 
-                  style={{ fontSize: "1.1rem" }}
+                  style={{ fontSize: "1.2rem" }}
                 />
                 <span style={{ color: "#495057", fontSize: "0.9rem" }}>Completed</span>
               </div>
@@ -231,31 +220,31 @@ export default function SchoolDashboard() {
                 }}>
                   50%
                 </span>
-                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Attempted</span>
+                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Attempted </span>
               </div>
               <div className="flex align-items-center gap-2">
                 <span 
-                  className="pi pi-times-circle text-pink-500" 
-                  style={{ fontSize: "1.1rem" }}
+                  className="pi pi-times-circle text-red-500" 
+                  style={{ fontSize: "1.2rem" }}
                 />
                 <span style={{ color: "#495057", fontSize: "0.9rem" }}>Not Started</span>
               </div>
             </div>
 
-{/* Student Table */}
-<div className="mt-4">
-  <StudentTable
-    students={currentPageStudents}
-    lessons={sortedLessons}
-    first={first}
-    loading={loading}
-    filters={filters}
-    onCellClick={onCellClick}
-  />
-</div>
+          {/* Student Table */}
+          <div className="mt-4">
+            <StudentTable
+              students={currentPageStudents}
+              lessons={sortedLessons}
+              first={first}
+              loading={loading}
+              filters={filters}
+              // ⬇️ pass a richer payload so the popup header can show item meta
+              onOpenProgress={openProgressFromCell}
+            />
+          </div>
 
-
-          {/* Single Paginator at the bottom */}
+          {/* Single paginator */}
           {filteredStudents.length > 0 && (
             <Pagination
               first={first}
@@ -267,19 +256,19 @@ export default function SchoolDashboard() {
         </div>
       </div>
 
-      {/* Student Progress Modal */}
+      {/* Progress Popup (reused) */}
       <StudentProgress
         visible={progressVisible}
         onHide={() => setProgressVisible(false)}
         loading={progressLoading}
         topics={progressTopics}
-        studentName={
-          activeStudent
-            ? `${currentPageStudents.find((s) => s.id === activeStudent)?.first_name || ""} ${
-                currentPageStudents.find((s) => s.id === activeStudent)?.last_name || ""
-              }`
-            : "Student"
+        // show item meta in the popup header
+        itemName={progressMeta?.lessonName || ""}
+        itemType={progressMeta?.lessonType || ""}
+        obtainedPercent={
+          typeof progressMeta?.obtained === "number" ? progressMeta?.obtained : null
         }
+        studentName={progressMeta?.studentName || "Student"}
       />
     </div>
   );

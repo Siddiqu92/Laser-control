@@ -10,7 +10,14 @@ interface StudentTableProps {
   first: number;
   loading: boolean;
   filters: any;
-  onCellClick: (studentId: string, lessonId: number, type: string) => void;
+  onOpenProgress: (payload: {
+    studentId: string;
+    studentName: string;
+    lessonId: number;
+    lessonName: string;
+    lessonType: string;
+    obtained?: number | null;
+  }) => void;
 }
 
 export const StudentTable: React.FC<StudentTableProps> = ({
@@ -19,7 +26,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   first,
   loading,
   filters,
-  onCellClick,
+  onOpenProgress,
 }) => {
   const studentTemplate = (student: Student) => (
     <span className="text-color">
@@ -27,147 +34,90 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     </span>
   );
 
-  // Badge helper
-  const getBadge = (value: number) => {
-    const rounded = Math.round(value);
-    let bg = "";
-    let text = "";
-    let border = "";
+  const percentPill = (num: number) => (
+    <span
+      className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
+      style={{
+        background: "rgb(240, 253, 244)",
+        color: "rgb(22, 163, 74)",
+        border: "1px solid rgba(22, 163, 74, 0.125)",
+        minWidth: "2.5rem",
+      }}
+    >
+      {`${Math.round(num)}%`}
+    </span>
+  );
 
-    if (rounded >= 75) {
-      bg = "rgb(240, 253, 244)";
-      text = "rgb(22, 163, 74)";
-      border = "rgba(22, 163, 74, 0.125)";
-    } else if (rounded >= 50) {
-      bg = "rgb(255, 251, 235)";
-      text = "rgb(217, 119, 6)";
-      border = "rgba(217, 119, 6, 0.125)";
-    } else {
-      bg = "rgb(254, 242, 242)";
-      text = "rgb(220, 38, 38)";
-      border = "rgba(220, 38, 38, 0.125)";
-    }
+const lessonTemplate = (lesson: Lesson, student: Student) => {
+  const progress = student.lessons_progress.find(
+    (lp) => lp.lesson_id === lesson.id
+  );
 
-    return (
-      <span
-        style={{
-          display: "inline-block",
-          padding: "0.25rem 0.5rem",
-          borderRadius: "4px",
-          fontSize: "0.75rem",
-          fontWeight: 600,
-          background: bg,
-          color: text,
-          lineHeight: 1.2,
-          minWidth: "2.5rem",
-          textAlign: "center",
-          border: `1px solid ${border}`,
-        }}
-      >
-        {`${rounded}%`}
-      </span>
-    );
-  };
+  const studentName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
 
-  const lessonTemplate = (lesson: Lesson, student: Student) => {
-    const progress = student.lessons_progress.find(
-      (lp) => lp.lesson_id === lesson.id
-    );
-    const clickable = lesson.type === "learning_object";
+  const handleClick = () =>
+    onOpenProgress({
+      studentId: student.id,
+      studentName,
+      lessonId: lesson.id,
+      lessonName: lesson.name,
+      lessonType: lesson.type,
+      obtained: progress?.progress ?? null,
+    });
 
-    if (!progress) {
-      return <span>—</span>;
-    }
+  const value = progress?.progress ?? null;
+  const isAssessmentOrExam =
+    lesson.type?.toLowerCase() === "assessment" ||
+    lesson.type?.toLowerCase() === "exam";
 
-    const value = progress.progress;
+  return (
+    <div
+      onClick={handleClick}
+      className="flex justify-content-center align-items-center cursor-pointer hover:text-primary"
+    >
+      {isAssessmentOrExam ? (
 
-    // Not started cases (-1 or 0)
-    if (value <= 0 || value === -1) {
-      return (
-        <div className="flex justify-content-center align-items-center">
-          <i className="pi pi-times-circle text-red-500"></i>
-        </div>
-      );
-    }
+        typeof value === "number" && value > 0 ? (
+          percentPill(value)
+        ) : (
+          <i className="pi pi-times-circle text-red-500" style={{ fontSize: "1.2rem" }}></i>
+        )
+      ) : (
+        // Learning objects & others
+        <>
+          {value === null || value <= 0 || value === -1 ? (
+            <i className="pi pi-times-circle text-red-500"  style={{ fontSize: "1.2rem" }}></i> // default not started
+          ) : (
+            getProgressIcon(value)
+          )}
+        </>
+      )}
+    </div>
+  );
+};
 
-    // Assessment / Exam / % based lessons
-    if (lesson.type === "assessment" || lesson.type === "exam") {
-      return (
-        <div className="flex justify-content-center align-items-center">
-          {getBadge(value)}
-        </div>
-      );
-    }
-
-    // Learning Object rules
-    if (lesson.type === "learning_object") {
-      return (
-        <div
-          onClick={() =>
-            clickable ? onCellClick(student.id, lesson.id, lesson.type) : undefined
-          }
-          className={`flex justify-content-center align-items-center ${
-            clickable ? "cursor-pointer hover:text-primary" : ""
-          }`}
-        >
-          {getProgressIcon(value)}
-        </div>
-      );
-    }
-
-    // Other lesson types (show badge instead of plain text as well)
-    return (
-      <div className="flex justify-content-center align-items-center">
-        {getBadge(value)}
-      </div>
-    );
-  };
 
   const indexTemplate = (_: any, options: any) => (
     <span className="text-color-secondary">{first + options.rowIndex + 1}</span>
   );
 
-  const lessonHeaderTemplate = (lesson: Lesson) => {
-    if (lesson.type === "learning_object") {
-      return (
-        <div
-          className="text-center font-medium"
-          style={{
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: "8rem",
-            margin: "0 auto",
-          }}
-        >
-          {lesson.name}
-        </div>
-      );
-    }
-
-    if (lesson.type === "assessment") {
-      return <div className="text-center font-medium">Assessment</div>;
-    }
-
-    if (lesson.type === "exam") {
-      return <div className="text-center font-medium">Exam</div>;
-    }
-
-    return (
-      <div
-        className="text-center font-medium"
-        style={{
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          maxWidth: "8rem",
-          margin: "0 auto",
-        }}
-      >
-        {lesson.type === "fun_activity" ? "Fun Activity" : lesson.type}
-      </div>
-    );
-  };
+const lessonHeaderTemplate = (lesson: Lesson) => (
+  <div
+    className="text-center font-medium"
+    style={{
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      maxWidth: "10rem",
+      margin: "0 auto",
+    }}
+    title={lesson.name}
+  >
+    {lesson.type?.toLowerCase() === "assessment"
+      ? "Assessment" 
+      : lesson.name}  
+  </div>
+);
 
   return (
     <DataTable
@@ -187,7 +137,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       sortField="first_name"
       sortOrder={1}
     >
-      {/* Index Column */}
+      {/* Index */}
       <Column
         header="#"
         body={indexTemplate}
@@ -244,13 +194,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           header={lessonHeaderTemplate(lesson)}
           body={(student: Student) => lessonTemplate(lesson, student)}
           style={{ minWidth: "10rem", textAlign: "center" }}
-          headerTooltip={
-            lesson.type === "assessment"
-              ? "Assessment"
-              : lesson.type === "exam"
-              ? "Exam"
-              : `${lesson.name} (${lesson.type})`
-          }
+          headerTooltip={`${lesson.name} (${lesson.type})`}
           headerStyle={{
             background: "var(--surface-card)",
             color: "var(--text-color)",
@@ -258,7 +202,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            maxWidth: "8rem",
+            maxWidth: "10rem",
           }}
         />
       ))}

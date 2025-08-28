@@ -1,5 +1,57 @@
 import { StatusValue, Student } from "./types";
 
+
+
+
+
+
+export const getBadge = (value: number) => {
+  const rounded = Math.round(value);
+  let bg = "";
+  let text = "";
+  let border = "";
+
+  if (rounded >= 75) {
+    bg = "rgb(240, 253, 244)";
+    text = "rgb(22, 163, 74)";
+    border = "rgba(22, 163, 74, 0.125)";
+  } else if (rounded >= 50) {
+    bg = "rgb(255, 251, 235)";
+    text = "rgb(217, 119, 6)";
+    border = "rgba(217, 119, 6, 0.125)";
+  } else if (rounded > 0) {
+    bg = "rgb(254, 242, 242)";
+    text = "rgb(220, 38, 38)";
+    border = "rgba(220, 38, 38, 0.125)";
+  } else {
+    // For 0% or negative values
+    return (
+      <div className="flex justify-content-center align-items-center">
+        <i className="pi pi-times-circle text-red-500"></i>
+      </div>
+    );
+  }
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "0.25rem 0.5rem",
+        borderRadius: "4px",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        background: bg,
+        color: text,
+        lineHeight: 1.2,
+        minWidth: "2.5rem",
+        textAlign: "center",
+        border: `1px solid ${border}`,
+      }}
+    >
+      {`${rounded}%`}
+    </span>
+  );
+};
 export const getProgressIcon = (progress: number) => {
   if (progress === 100) {
     return (

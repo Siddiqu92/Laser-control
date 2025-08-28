@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -7,7 +7,7 @@ import { Column } from "primereact/column";
 interface Activity {
   id: number;
   title: string;
-  type: string;
+  activity_type: string;
   progress: string;
   last_read: string | null;
 }
@@ -24,6 +24,11 @@ interface StudentProgressProps {
   loading: boolean;
   topics: Topic[];
   studentName?: string;
+
+  // extra meta
+  itemName?: string;
+  itemType?: string;
+  obtainedPercent?: number | null;
 }
 
 export default function StudentProgress({
@@ -32,16 +37,39 @@ export default function StudentProgress({
   loading,
   topics,
   studentName = "Student",
+  itemName = "",
+  itemType = "",
+  obtainedPercent = null,
 }: StudentProgressProps) {
-  const rows = topics.flatMap((topic) =>
-    topic.activities.map((activity) => ({
-      topicTitle: topic.topic_title,
-      ...activity,
-    }))
+  const rows = useMemo(
+    () =>
+      (topics || []).flatMap((topic) =>
+        (topic.activities || []).map((activity) => ({
+          topicTitle: topic.topic_title,
+          ...activity,
+        }))
+      ),
+    [topics]
+  );
+
+  const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+
+  const pill = (text: string) => (
+    <span
+      className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
+      style={{
+        background: "rgb(255, 251, 235)",
+        color: "rgb(217, 119, 6)",
+        border: "1px solid rgba(217, 119, 6, 0.125)",
+        minWidth: "2.5rem",
+      }}
+    >
+      {text}
+    </span>
   );
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return ""; // "NOT READ" ko hata kar blank
+    if (!dateString) return "";
     try {
       const date = new Date(dateString);
       return new Intl.DateTimeFormat("en-US", {
@@ -58,51 +86,66 @@ export default function StudentProgress({
     }
   };
 
-  const renderStatus = (rowData: Activity) => {
-    if (rowData.progress === "100%") {
-      return (
-        <div className="flex justify-center items-center">
-          <i className="pi pi-check-circle text-green-500 text-lg"></i>
-        </div>
-      );
-    } else if (rowData.progress === "0%" || !rowData.progress) {
-      return (
-        <div className="flex justify-center items-center">
-          <i className="pi pi-times-circle text-red-500 text-lg"></i>
-        </div>
-      );
-    } else {
-      return (
-        <div className="flex justify-center items-center">
-          <span
-            className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
-            style={{
-              background: "rgb(255, 251, 235)",
-              color: "rgb(217, 119, 6)",
-              border: "1px solid rgba(217, 119, 6, 0.125)",
-              minWidth: "2.5rem",
-            }}
-          >
-            {rowData.progress}
-          </span>
-        </div>
-      );
-    }
+  const onlyPercentOrBlank = (percentText?: string) => {
+    if (!percentText) return "";
+    const n = parseInt(percentText.replace("%", ""), 10);
+    if (isNaN(n) || n <= 0) return "";
+    return `${n}%`;
   };
+const renderStatus = (rowData: Activity) => {
+  const type = (rowData.activity_type || "").toUpperCase();
+  const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+
+  // ✅ For Assessment & Exam → show % Attempted only (including 0%)
+  if (type === "ASSESSMENT" || type === "EXAM") {
+    const percent = isNaN(n) || n < 0 ? 0 : n;
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <span className="font-semibold text-orange-600">{percent}%</span>
+        <span className="text-gray-600 text-xs">Attempted</span>
+      </div>
+    );
+  }
+
+  // For Learning Object & Activity → icon + text logic
+  return (
+    <div className="flex justify-center items-center gap-2">
+      {isNaN(n) || n <= 0 ? (
+        <>
+          <i className="pi pi-times-circle text-red-500 text-lg"></i>
+          <span className="text-red-500 text-sm">Not Started</span>
+        </>
+      ) : n === 100 ? (
+        <>
+          <i className="pi pi-check-circle text-green-500 text-lg"></i>
+          <span className="text-green-500 text-sm">Completed</span>
+        </>
+      ) : (
+        <>
+          <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
+          <span className="text-yellow-600 text-sm">{n}% In Progress</span>
+        </>
+      )}
+    </div>
+  );
+};
+
+
 
   return (
     <Dialog
       header={`${studentName}'s Progress`}
       visible={visible}
       style={{ width: "80vw", maxWidth: "1000px" }}
-      onHide={onHide}
+      onHide={() => {
+        setSelectedActivity(null);
+        onHide();
+      }}
       modal
       className="student-progress-dialog"
     >
       {loading ? (
-        <div className="p-4 text-center text-secondary">
-          Loading progress data...
-        </div>
+        <div className="p-4 text-center text-secondary">Loading progress data...</div>
       ) : rows.length === 0 ? (
         <div className="p-4 text-center text-secondary">
           No progress data found for this student
@@ -119,6 +162,8 @@ export default function StudentProgress({
           rowGroupHeaderTemplate={(data) => (
             <span className="font-bold">{data.topicTitle}</span>
           )}
+          selectionMode="single"
+          onRowClick={(e) => setSelectedActivity(e.data as Activity)}
         >
           <Column field="title" header="Activity" style={{ minWidth: "250px" }} />
           <Column
@@ -126,11 +171,20 @@ export default function StudentProgress({
             body={renderStatus}
             style={{ width: "150px", textAlign: "center" }}
           />
-          <Column
-            header="Attempted"
-            body={(rowData) => formatDate(rowData.last_read)}
-            style={{ minWidth: "250px" }}
-          />
+        <Column
+  header="Attempted"
+  body={(rowData) => {
+    const type = (rowData.activity_type || "").toUpperCase();
+    if (type === "ASSESSMENT" || type === "EXAM") {
+      const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+      const percent = isNaN(n) || n < 0 ? 0 : n;
+      return <span>{percent}%</span>; 
+    }
+    return formatDate(rowData.last_read); 
+  }}
+  style={{ minWidth: "250px" }}
+/>
+
         </DataTable>
       )}
     </Dialog>
