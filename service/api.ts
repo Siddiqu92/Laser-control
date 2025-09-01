@@ -6,6 +6,7 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Request interceptor for token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,6 +15,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor for 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -27,7 +29,7 @@ api.interceptors.response.use(
 );
 
 export const ApiService = {
-  /**  Auth */
+  /** 🔑 Auth */
   async login(email: string, password: string) {
     const response = await api.post("/auth/login", { email, password });
     const data = response.data?.data || response.data;
@@ -35,20 +37,18 @@ export const ApiService = {
     if (!data?.access_token) throw new Error("No access token received");
 
     localStorage.setItem("token", data.access_token);
-    if (data.refresh_token) {
-      localStorage.setItem("refresh_token", data.refresh_token);
-    }
+    if (data.refresh_token) localStorage.setItem("refresh_token", data.refresh_token);
 
     return data;
   },
 
-  /**  Schools */
+  /** 🏫 Schools */
   async getSchools() {
     const res = await api.get(`/items/school`);
     return res.data.data;
   },
 
-  /**  Teachers */
+  /** 👨‍🏫 Teachers */
   async getTeachers() {
     const res = await api.get(
       `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=teacher`
@@ -56,7 +56,7 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /**  Students */
+  /** 👩‍🎓 Students */
   async getStudents() {
     const res = await api.get(
       `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=student`
@@ -64,7 +64,7 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /**  Programs of Study */
+  /** 📘 Programs of Study */
   async getProgramsOfStudy() {
     const res = await api.get(`/items/program_of_study`);
     return res.data.data;
@@ -79,27 +79,40 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /**  Courses */
+  /** 📚 Courses */
   async getCourses() {
     const res = await api.get(`/items/course`);
     return res.data.data;
   },
 
-  /**  Devices */
+  /** 📱 Devices */
   async getDevices() {
     const res = await api.get(`/items/device`);
     return res.data.data;
   },
 
-  /**  Dashboard + Progress */
-  async getStudentDashboard(courseId: string) {
+  /** 📊 Student Dashboard */
+  async getStudentDashboard(courseId: string | number) {
     const res = await api.get(`/student-dashboard/${courseId}`);
     return res.data.data;
   },
 
+  /** 📈 Student Progress */
   async getStudentProgress(studentId: string | number, courseId: string | number) {
     const res = await api.get(`/student-progress/${studentId}/${courseId}`);
     return res.data.data;
+  },
+
+  /** 📝 Student Assessment Progress */
+  async getStudentAssessmentProgress(
+    studentId: string | number,
+    courseId: string | number,
+    assessmentId: string | number
+  ) {
+    const res = await api.get(
+      `/student-assessment-progress/${studentId}/${courseId}/${assessmentId}`
+    );
+    return res.data; // <-- return full response including status, message, data
   },
 };
 

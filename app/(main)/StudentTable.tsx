@@ -83,7 +83,7 @@ const lessonTemplate = (lesson: Lesson, student: Student) => {
           <i className="pi pi-times-circle text-red-500" style={{ fontSize: "1.2rem" }}></i>
         )
       ) : (
-        // Learning objects & others
+       
         <>
           {value === null || value <= 0 || value === -1 ? (
             <i className="pi pi-times-circle text-red-500"  style={{ fontSize: "1.2rem" }}></i> // default not started

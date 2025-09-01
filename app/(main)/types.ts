@@ -26,3 +26,5 @@ export interface DashboardData {
   lessons: Lesson[];
   students: Student[];
 }
+
+

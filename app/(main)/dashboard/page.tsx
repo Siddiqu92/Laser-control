@@ -2,20 +2,21 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { ApiService } from "@/service/api";
 import { FilterMatchMode, FilterOperator } from "primereact/api";
-import StudentProgress from "./StudentProgress";
-import { DashboardData, StatusValue, Student, Lesson } from "./types";
-import { getFilteredStudents } from "./utils";
 import { Filters } from "./Filters";
 import { StudentTable } from "./StudentTable";
 import { Pagination } from "./Pagination";
+import StudentProgress from "./StudentProgress";
+import AssessmentResult from "./AssessmentResult";
+import { DashboardData, StatusValue, Student, Lesson } from "./types";
+import { getFilteredStudents } from "./utils";
 
 type ProgressMeta = {
   studentId: string;
   studentName: string;
   lessonId: number;
   lessonName: string;
-  lessonType: string; // learning_object | assessment | exam | fun_activity | ...
-  obtained?: number | null; // % from table cell, if available
+  lessonType: string; // "Learning Object" | "Assessment"
+  obtained?: number | null;
 };
 
 export default function SchoolDashboard() {
@@ -29,13 +30,14 @@ export default function SchoolDashboard() {
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10);
 
-  // popup state
+  // Popup state
   const [progressVisible, setProgressVisible] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
-  const [progressTopics, setProgressTopics] = useState<any[]>([]);
+  const [progressData, setProgressData] = useState<any>(null); // StudentProgress or AssessmentResult
   const [progressMeta, setProgressMeta] = useState<ProgressMeta | null>(null);
+  const [isAssessment, setIsAssessment] = useState(false);
 
-  // datatable filters (kept from your code)
+  // Datatable filters
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     name: {
@@ -44,6 +46,7 @@ export default function SchoolDashboard() {
     },
   });
 
+  // Fetch programs on mount
   useEffect(() => {
     async function fetchPrograms() {
       try {
@@ -58,6 +61,7 @@ export default function SchoolDashboard() {
     fetchPrograms();
   }, []);
 
+  // Fetch dashboard data for selected course
   const fetchDashboardData = async (courseId: string, courseName: string) => {
     try {
       setLoading(true);
@@ -71,23 +75,40 @@ export default function SchoolDashboard() {
     }
   };
 
-  const fetchStudentProgress = async (studentId: string, lessonId: number) => {
+  // Fetch student progress per lesson
+  const fetchStudentProgress = async (
+    studentId: string,
+    lessonId: number,
+    lessonType: string
+  ) => {
     try {
       setProgressLoading(true);
       setProgressVisible(true);
-      const response = await ApiService.getStudentProgress(studentId, lessonId);
-      // your api returns res.data.data → service already unwraps .data
+      setIsAssessment(lessonType.toLowerCase() === "assessment");
+
+      let response: any;
+
+      if (lessonType.toLowerCase() === "assessment") {
+        response = await ApiService.getStudentAssessmentProgress(
+          studentId,
+          selectedCourseId as string,
+          lessonId
+        );
+      } else {
+        response = await ApiService.getStudentProgress(studentId, lessonId);
+      }
+
       const topicsData = response?.data || response || [];
-      setProgressTopics(topicsData);
+      setProgressData(topicsData);
     } catch (err) {
       console.error("Error fetching student progress:", err);
-      setProgressTopics([]);
+      setProgressData(null);
     } finally {
       setProgressLoading(false);
     }
   };
 
-  // preselect first grade/subject
+  // Preselect first grade/course
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -105,9 +126,10 @@ export default function SchoolDashboard() {
   }, [programs, selectedGrade, selectedSubject]);
 
   const filterOptions = useMemo(() => {
-    const grades = Array.from(new Set(programs.map((p) => p.name))).map(
-      (name) => ({ label: name, value: name })
-    );
+    const grades = Array.from(new Set(programs.map((p) => p.name))).map((name) => ({
+      label: name,
+      value: name,
+    }));
 
     let subjects: { label: string; value: string; courseId: string }[] = [];
     if (selectedGrade) {
@@ -137,9 +159,7 @@ export default function SchoolDashboard() {
 
   const sortedLessons: Lesson[] = useMemo(() => {
     if (!dashboardData?.lessons) return [];
-    return [...dashboardData.lessons].sort(
-      (a, b) => (a.sort ?? 0) - (b.sort ?? 0)
-    );
+    return [...dashboardData.lessons].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
   }, [dashboardData?.lessons]);
 
   const onPageChange = (event: any) => {
@@ -151,10 +171,10 @@ export default function SchoolDashboard() {
     return filteredStudents.slice(first, first + rows);
   }, [filteredStudents, first, rows]);
 
-  // ✅ unified click handler for ALL lesson types
+  // Click handler to open progress popup
   const openProgressFromCell = (payload: ProgressMeta) => {
     setProgressMeta(payload);
-    fetchStudentProgress(payload.studentId, payload.lessonId);
+    fetchStudentProgress(payload.studentId, payload.lessonId, payload.lessonType);
   };
 
   if (loading)
@@ -185,7 +205,7 @@ export default function SchoolDashboard() {
               setSelectedStatuses={setSelectedStatuses}
               filterOptions={filterOptions}
               loadedCourseName={selectedSubject}
-              onLoad={(courseName) => {
+              onLoad={() => {
                 if (selectedCourseId && selectedSubject) {
                   fetchDashboardData(selectedCourseId, selectedSubject);
                 } else {
@@ -195,42 +215,6 @@ export default function SchoolDashboard() {
             />
           </div>
 
-
-            {/* Right side - Legend */}
-            <div className="flex gap-4">
-              <div className="flex align-items-center gap-2">
-                <span 
-                  className="pi pi-check-circle text-green-500" 
-                  style={{ fontSize: "1.2rem" }}
-                />
-                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Completed</span>
-              </div>
-              <div className="flex align-items-center gap-2">
-                <span style={{ 
-                  display: "inline-block",
-                  padding: "0.1rem 0.3rem",
-                  borderRadius: "4px",
-                  fontSize: "0.7rem",
-                  fontWeight: 600,
-                  background: "#fffbeb",
-                  color: "#d97706",
-                  border: "1px solid #d9770620",
-                  minWidth: "2rem",
-                  textAlign: "center"
-                }}>
-                  50%
-                </span>
-                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Attempted </span>
-              </div>
-              <div className="flex align-items-center gap-2">
-                <span 
-                  className="pi pi-times-circle text-red-500" 
-                  style={{ fontSize: "1.2rem" }}
-                />
-                <span style={{ color: "#495057", fontSize: "0.9rem" }}>Not Started</span>
-              </div>
-            </div>
-
           {/* Student Table */}
           <div className="mt-4">
             <StudentTable
@@ -239,12 +223,11 @@ export default function SchoolDashboard() {
               first={first}
               loading={loading}
               filters={filters}
-              // ⬇️ pass a richer payload so the popup header can show item meta
               onOpenProgress={openProgressFromCell}
             />
           </div>
 
-          {/* Single paginator */}
+          {/* Pagination */}
           {filteredStudents.length > 0 && (
             <Pagination
               first={first}
@@ -256,20 +239,28 @@ export default function SchoolDashboard() {
         </div>
       </div>
 
-      {/* Progress Popup (reused) */}
-      <StudentProgress
-        visible={progressVisible}
-        onHide={() => setProgressVisible(false)}
-        loading={progressLoading}
-        topics={progressTopics}
-        // show item meta in the popup header
-        itemName={progressMeta?.lessonName || ""}
-        itemType={progressMeta?.lessonType || ""}
-        obtainedPercent={
-          typeof progressMeta?.obtained === "number" ? progressMeta?.obtained : null
-        }
-        studentName={progressMeta?.studentName || "Student"}
-      />
+      {/* Progress Popup */}
+      {isAssessment ? (
+        <AssessmentResult
+          visible={progressVisible}
+          onHide={() => setProgressVisible(false)}
+          loading={progressLoading}
+          assessmentData={progressData}
+          studentName={progressMeta?.studentName || "Student"} />
+      ) : (
+        <StudentProgress
+          visible={progressVisible}
+          onHide={() => setProgressVisible(false)}
+          loading={progressLoading}
+          topics={progressData}
+          itemName={progressMeta?.lessonName || ""}
+          itemType={progressMeta?.lessonType || ""}
+          obtainedPercent={
+            typeof progressMeta?.obtained === "number" ? progressMeta?.obtained : null
+          }
+          studentName={progressMeta?.studentName || "Student"}
+        />
+      )}
     </div>
   );
 }

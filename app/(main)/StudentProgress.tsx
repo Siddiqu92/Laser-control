@@ -25,9 +25,8 @@ interface StudentProgressProps {
   topics: Topic[];
   studentName?: string;
 
-  // extra meta
   itemName?: string;
-  itemType?: string;
+  itemType?: string;   
   obtainedPercent?: number | null;
 }
 
@@ -41,32 +40,21 @@ export default function StudentProgress({
   itemType = "",
   obtainedPercent = null,
 }: StudentProgressProps) {
-  const rows = useMemo(
-    () =>
-      (topics || []).flatMap((topic) =>
-        (topic.activities || []).map((activity) => ({
-          topicTitle: topic.topic_title,
-          ...activity,
-        }))
-      ),
-    [topics]
-  );
+const rows = useMemo(() => {
+  if (!topics || !Array.isArray(topics)) return [];
+  return topics
+    .map((topic) => {
+      if (!topic.activities || !Array.isArray(topic.activities)) return [];
+      return topic.activities.map((activity) => ({
+        topicTitle: topic.topic_title,
+        ...activity,
+      }));
+    })
+    .flat(); // flat() se nested array ko single array bana diya
+}, [topics]);
+
 
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
-
-  const pill = (text: string) => (
-    <span
-      className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
-      style={{
-        background: "rgb(255, 251, 235)",
-        color: "rgb(217, 119, 6)",
-        border: "1px solid rgba(217, 119, 6, 0.125)",
-        minWidth: "2.5rem",
-      }}
-    >
-      {text}
-    </span>
-  );
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -86,30 +74,37 @@ export default function StudentProgress({
     }
   };
 
-  const onlyPercentOrBlank = (percentText?: string) => {
-    if (!percentText) return "";
-    const n = parseInt(percentText.replace("%", ""), 10);
-    if (isNaN(n) || n <= 0) return "";
-    return `${n}%`;
-  };
-
   const renderStatus = (rowData: Activity) => {
     const type = (rowData.activity_type || "").toUpperCase();
+    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
 
     if (type === "ASSESSMENT" || type === "EXAM") {
-      const v = onlyPercentOrBlank(rowData.progress);
-      return <div className="flex justify-center items-center">{v ? pill(v) : <span></span>}</div>;
+      const percent = isNaN(n) || n < 0 ? 0 : n;
+      return (
+        <div className="flex flex-col items-center justify-center">
+          <span className="font-semibold text-orange-600">{percent}%</span>
+          <span className="text-gray-600 text-xs">Attempted</span>
+        </div>
+      );
     }
 
-    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
     return (
-      <div className="flex justify-center items-center">
+      <div className="flex justify-center items-center gap-2">
         {isNaN(n) || n <= 0 ? (
-          <i className="pi pi-times-circle text-red-500 text-lg"></i>
+          <>
+            <i className="pi pi-times-circle text-red-500 text-lg"></i>
+            <span className="text-red-500 text-sm">Not Started</span>
+          </>
         ) : n === 100 ? (
-          <i className="pi pi-check-circle text-green-500 text-lg"></i>
+          <>
+            <i className="pi pi-check-circle text-green-500 text-lg"></i>
+            <span className="text-green-500 text-sm">Completed</span>
+          </>
         ) : (
-          pill(`${n}%`)
+          <>
+            <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
+            <span className="text-yellow-600 text-sm">{n}% In Progress</span>
+          </>
         )}
       </div>
     );
@@ -129,11 +124,26 @@ export default function StudentProgress({
     >
       {loading ? (
         <div className="p-4 text-center text-secondary">Loading progress data...</div>
+      ) : itemType?.toUpperCase() === "ASSESSMENT" ? (
+
+        <div className="p-6 text-center">
+          <h3 className="text-lg font-semibold mb-2">{itemName}</h3>
+          <p className="text-gray-600 mb-4">
+            Assessment Result for <b>{studentName}</b>
+          </p>
+          <div className="inline-flex flex-col items-center justify-center border rounded-lg p-6 shadow-md">
+            <span className="text-4xl font-bold text-orange-600">
+              {obtainedPercent !== null ? `${obtainedPercent}%` : "N/A"}
+            </span>
+            <span className="text-gray-500 mt-2">Obtained</span>
+          </div>
+        </div>
       ) : rows.length === 0 ? (
         <div className="p-4 text-center text-secondary">
           No progress data found for this student
         </div>
       ) : (
+   
         <DataTable
           value={rows}
           rowGroupMode="subheader"
@@ -155,8 +165,16 @@ export default function StudentProgress({
             style={{ width: "150px", textAlign: "center" }}
           />
           <Column
-            header="Attempted"
-            body={(rowData) => formatDate(rowData.last_read)}
+            header="Last Activity / Attempted"
+            body={(rowData) => {
+              const type = (rowData.activity_type || "").toUpperCase();
+              if (type === "ASSESSMENT" || type === "EXAM") {
+                const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+                const percent = isNaN(n) || n < 0 ? 0 : n;
+                return <span>{percent}%</span>;
+              }
+              return formatDate(rowData.last_read);
+            }}
             style={{ minWidth: "250px" }}
           />
         </DataTable>
