@@ -20,6 +20,7 @@ const formatType = (rawType: string) => {
   if (type.includes("blank")) return "Fill in the Blanks";
   return rawType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 };
+
 const AssessmentResult: React.FC<AssessmentResultProps> = ({
   visible,
   onHide,
@@ -52,7 +53,7 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
 
     const { summary, questions, assessment } = assessmentData;
 
-    // ✅ Agar API se assessment name aata hai to use karenge, warna fallback
+    // ✅ Assessment title
     const displayTitle = assessment?.name || topicTitle || "Assessment";
 
     return (
@@ -65,19 +66,26 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
         {/* ✅ Summary Section */}
         <div className="border-round surface-card shadow-2 p-4 mb-5 flex flex-column md:flex-row justify-content-between">
           <div>
-            {/* 👇 API ka assessment name show hoga */}
             <h3 className="text-xl font-bold mb-3">{displayTitle}</h3>
+
             <p className="mb-2 text-lg">
               Total Questions:{" "}
               <span className="font-semibold">
                 {summary?.total_questions || 0}
               </span>
             </p>
-            <p className="mb-0 text-lg">
+
+            <p className="mb-2 text-lg">
               Total Max Points:{" "}
               <span className="font-semibold">
-                {summary?.total_max_points || summary?.total_marks || 0}
+                {summary?.total_marks || 0}
               </span>
+            </p>
+
+            {/* ✅ Added Weight */}
+            <p className="mb-0 text-lg">
+              Weight:{" "}
+              <span className="font-semibold">{assessment?.weight || 0}%</span>
             </p>
           </div>
 
@@ -88,12 +96,22 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                 {summary?.correct_answers || 0}
               </span>
             </p>
+
             <p className="mb-2 text-lg text-red-500">
               Incorrect Answers:{" "}
               <span className="font-bold">
                 {summary?.incorrect_answers || 0}
               </span>
             </p>
+
+            {/* ✅ Added Skipped Questions */}
+            <p className="mb-2 text-lg text-orange-500">
+              Skipped Questions:{" "}
+              <span className="font-bold">
+                {summary?.skipped_questions || 0}
+              </span>
+            </p>
+
             <p className="mb-0 text-lg">
               Score:{" "}
               <span className="font-bold text-primary">
@@ -102,7 +120,6 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             </p>
           </div>
         </div>
-
 
         {/* ✅ Questions Table */}
         <div className="p-4 border-round surface-card shadow-2">
@@ -120,37 +137,54 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                 <tr className="bg-surface-100 text-left">
                   <th className="p-3 border">Q#</th>
                   <th className="p-3 border">Question</th>
-                  <th className="p-3 border">Correct/Incorrect</th>
+                  <th className="p-3 border">Status</th>
                   <th className="p-3 border">Time Spent</th>
                   <th className="p-3 border">Type</th>
                 </tr>
               </thead>
               <tbody>
-                {questions?.map((q: any, i: number) => (
-                  <tr key={q.question_id || i} className="hover:surface-hover">
-                    <td className="p-3 border">{i + 1}</td>
-                    <td className="p-3 border">{q.statement}</td>
-                    <td className="p-3 border">
-                      {q.is_correct ? (
-                        <span className="text-green-600 font-semibold flex align-items-center">
-                          <i className="pi pi-check-circle mr-2"></i>
-                          Correct
-                        </span>
-                      ) : (
-                        <span className="text-red-500 font-semibold flex align-items-center">
-                          <i className="pi pi-times-circle mr-2"></i>
-                          Incorrect
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3 border">
-                      {q.time_spent ? `${q.time_spent}s` : "N/A"}
-                    </td>
-                    <td className="p-3 border">
-                      {formatType(q.question_type)}
-                    </td>
-                  </tr>
-                ))}
+                {questions?.map((q: any, i: number) => {
+                  let statusEl;
+                  if (q.student_answer === null) {
+                    statusEl = (
+                      <span className="text-orange-500 font-semibold flex align-items-center">
+                        <i className="pi pi-minus-circle mr-2"></i>
+                        Skipped
+                      </span>
+                    );
+                  } else if (q.is_correct) {
+                    statusEl = (
+                      <span className="text-green-600 font-semibold flex align-items-center">
+                        <i className="pi pi-check-circle mr-2"></i>
+                        Correct
+                      </span>
+                    );
+                  } else {
+                    statusEl = (
+                      <span className="text-red-500 font-semibold flex align-items-center">
+                        <i className="pi pi-times-circle mr-2"></i>
+                        Incorrect
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <tr
+                      key={q.question_id || i}
+                      className="hover:surface-hover"
+                    >
+                      <td className="p-3 border">{i + 1}</td>
+                      <td className="p-3 border">{q.statement}</td>
+                      <td className="p-3 border">{statusEl}</td>
+                      <td className="p-3 border">
+                        {q.time_spent ? `${q.time_spent}s` : "N/A"}
+                      </td>
+                      <td className="p-3 border">
+                        {formatType(q.question_type)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
