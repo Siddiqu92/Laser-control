@@ -15,7 +15,7 @@ type ProgressMeta = {
   studentName: string;
   lessonId: number;
   lessonName: string;
-  lessonType: string; // "Learning Object" | "Assessment"
+  lessonType: string;
   obtained?: number | null;
 };
 
@@ -30,14 +30,14 @@ export default function SchoolDashboard() {
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10);
 
-  // Popup state
+
   const [progressVisible, setProgressVisible] = useState(false);
   const [progressLoading, setProgressLoading] = useState(false);
-  const [progressData, setProgressData] = useState<any>(null); // StudentProgress or AssessmentResult
+  const [progressData, setProgressData] = useState<any>(null); 
   const [progressMeta, setProgressMeta] = useState<ProgressMeta | null>(null);
   const [isAssessment, setIsAssessment] = useState(false);
 
-  // Datatable filters
+
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     name: {
@@ -46,7 +46,7 @@ export default function SchoolDashboard() {
     },
   });
 
-  // Fetch programs on mount
+
   useEffect(() => {
     async function fetchPrograms() {
       try {
@@ -61,7 +61,7 @@ export default function SchoolDashboard() {
     fetchPrograms();
   }, []);
 
-  // Fetch dashboard data for selected course
+ 
   const fetchDashboardData = async (courseId: string, courseName: string) => {
     try {
       setLoading(true);
@@ -75,7 +75,7 @@ export default function SchoolDashboard() {
     }
   };
 
-  // Fetch student progress per lesson
+ 
   const fetchStudentProgress = async (
     studentId: string,
     lessonId: number,
@@ -108,7 +108,7 @@ export default function SchoolDashboard() {
     }
   };
 
-  // Preselect first grade/course
+  
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -171,7 +171,7 @@ export default function SchoolDashboard() {
     return filteredStudents.slice(first, first + rows);
   }, [filteredStudents, first, rows]);
 
-  // Click handler to open progress popup
+
   const openProgressFromCell = (payload: ProgressMeta) => {
     setProgressMeta(payload);
     fetchStudentProgress(payload.studentId, payload.lessonId, payload.lessonType);
@@ -214,6 +214,39 @@ export default function SchoolDashboard() {
               }}
             />
           </div>
+
+
+
+ {/* Legend */}
+  <div className="flex gap-4">
+    <div className="flex align-items-center gap-2">
+      <span className="pi pi-check-circle text-green-500" style={{ fontSize: "1.1rem" }} />
+      <span className="p-text-secondary text-sm">Completed</span>
+    </div>
+    <div className="flex align-items-center gap-2">
+      <span
+        style={{
+          display: "inline-block",
+          padding: "0.1rem 0.3rem",
+          borderRadius: "4px",
+          fontSize: "0.7rem",
+          fontWeight: 600,
+          background: "#fffbeb",
+          color: "#d97706",
+          border: "1px solid #d9770620",
+          minWidth: "2rem",
+          textAlign: "center",
+        }}
+      >
+        50%
+      </span>
+      <span className="p-text-secondary text-sm">In Progress</span>
+    </div>
+    <div className="flex align-items-center gap-2">
+      <span className="pi pi-times-circle text-pink-500" style={{ fontSize: "1.1rem" }} />
+      <span className="p-text-secondary text-sm">Not Started</span>
+    </div>
+  </div>
 
           {/* Student Table */}
           <div className="mt-4">

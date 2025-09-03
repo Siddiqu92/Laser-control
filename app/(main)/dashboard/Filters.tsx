@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+"use client";
+import React, { useEffect, useState, useMemo } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { ProgressSpinner } from "primereact/progressspinner";
@@ -31,6 +32,22 @@ export const Filters: React.FC<FiltersProps> = ({
   loadedCourseName,
 }) => {
   const [loading, setLoading] = useState(false);
+
+  // ✅ Sort grades: Kindergarten first, then Grade 1..N
+  const sortedGrades = useMemo(() => {
+    return [...filterOptions.grades].sort((a, b) => {
+      if (a.label.toLowerCase().includes("kindergarten")) return -1;
+      if (b.label.toLowerCase().includes("kindergarten")) return 1;
+
+      const numA = parseInt(a.label.replace(/[^0-9]/g, ""), 10);
+      const numB = parseInt(b.label.replace(/[^0-9]/g, ""), 10);
+
+      if (isNaN(numA) || isNaN(numB)) {
+        return a.label.localeCompare(b.label);
+      }
+      return numA - numB;
+    });
+  }, [filterOptions.grades]);
 
   useEffect(() => {
     if (selectedGrade && filterOptions.subjects.length > 0) {
@@ -72,7 +89,7 @@ export const Filters: React.FC<FiltersProps> = ({
           {/* Grade Dropdown */}
           <Dropdown
             id="grade"
-            options={filterOptions.grades}
+            options={sortedGrades}  
             value={selectedGrade}
             onChange={(e) => setSelectedGrade(e.value)}
             placeholder="Select Grade"

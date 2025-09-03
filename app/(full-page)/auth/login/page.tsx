@@ -6,7 +6,7 @@ import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { InputText } from "primereact/inputtext";
 import { LayoutContext } from "../../../../layout/context/layoutcontext";
-import { useAuth } from "@/contexts/AuthContext"; // ADD THIS IMPORT
+import { useAuth } from "@/contexts/AuthContext"; 
 import { Message } from "primereact/message";
 
 const Login = () => {
@@ -18,7 +18,7 @@ const Login = () => {
 
   const router = useRouter();
   const { layoutConfig } = useContext(LayoutContext);
-  const { login } = useAuth(); // ADD THIS
+  const { login } = useAuth(); 
   const dark = layoutConfig.colorScheme !== "light";
 
   const handleLogin = async () => {

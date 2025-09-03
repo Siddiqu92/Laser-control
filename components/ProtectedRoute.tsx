@@ -1,28 +1,25 @@
 "use client";
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+
+  const publicPaths = ["/auth/login", "/auth/register"];
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/auth/login');
+    if (!isLoading && !isAuthenticated && !publicPaths.includes(pathname)) {
+      router.push("/auth/login");
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isLoading, isAuthenticated, pathname]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-content-center align-items-center min-h-screen">
-        <div className="text-center">
-          <i className="pi pi-spin pi-spinner text-4xl text-primary"></i>
-          <p className="mt-3 text-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <p>Loading...</p>;
 
-  return isAuthenticated ? <>{children}</> : null;
+  if (!isAuthenticated && !publicPaths.includes(pathname)) return null;
+
+  return <>{children}</>;
 }

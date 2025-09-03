@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { AuthProvider } from "../../contexts/AuthContext";
 import Layout from "../../layout/layout";
 
 interface MainLayoutProps {
@@ -26,5 +27,9 @@ export const metadata: Metadata = {
 };
 
 export default function MainLayout({ children }: MainLayoutProps) {
-    return <Layout>{children}</Layout>;
+    return (
+        <AuthProvider>
+            <Layout>{children}</Layout>
+        </AuthProvider>
+    );
 }

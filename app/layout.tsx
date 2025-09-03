@@ -1,9 +1,12 @@
 "use client";
+
 import { LayoutProvider } from "../layout/context/layoutcontext";
+import { PrimeReactProvider } from "primereact/api";
+import { AuthProvider } from "../contexts/AuthContext"; // ✅ Auth context
+import ProtectedRoute from "../components/ProtectedRoute"; // ✅ Protected wrapper
 
 import "primeflex/primeflex.css";
 import "primeicons/primeicons.css";
-import { PrimeReactProvider } from "primereact/api";
 import "primereact/resources/primereact.css";
 import "../styles/demo/Demos.scss";
 import "../styles/layout/layout.scss";
@@ -20,11 +23,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
                     id="theme-link"
                     href={`/theme/theme-light/indigo/theme.css`}
                     rel="stylesheet"
-                ></link>
+                />
             </head>
             <body>
                 <PrimeReactProvider>
-                    <LayoutProvider>{children}</LayoutProvider>
+                    <LayoutProvider>
+                        {/* ✅ Global Auth + ProtectedRoute wrap */}
+                        <AuthProvider>
+                            <ProtectedRoute>{children}</ProtectedRoute>
+                        </AuthProvider>
+                    </LayoutProvider>
                 </PrimeReactProvider>
             </body>
         </html>
