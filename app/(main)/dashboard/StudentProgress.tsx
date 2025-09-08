@@ -3,6 +3,8 @@ import React, { useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import AssessmentResult from "./AssessmentResult";
+import { ApiService } from "../../../service/api"; // Fixed import
 
 interface Activity {
   id: number;
@@ -10,6 +12,7 @@ interface Activity {
   activity_type: string;
   progress: string;
   last_read: string | null;
+  isAssessment?: boolean;
 }
 
 interface Topic {
@@ -24,7 +27,8 @@ interface StudentProgressProps {
   loading: boolean;
   topics: Topic[];
   studentName?: string;
-
+  studentId?: string;
+  courseId?: string;
   itemName?: string;
   itemType?: string;   
   obtainedPercent?: number | null;
@@ -36,25 +40,52 @@ export default function StudentProgress({
   loading,
   topics,
   studentName = "Student",
+  studentId = "",
+  courseId = "",
   itemName = "",
   itemType = "",
   obtainedPercent = null,
 }: StudentProgressProps) {
-const rows = useMemo(() => {
-  if (!topics || !Array.isArray(topics)) return [];
-  return topics
-    .map((topic) => {
-      if (!topic.activities || !Array.isArray(topic.activities)) return [];
-      return topic.activities.map((activity) => ({
-        topicTitle: topic.topic_title,
-        ...activity,
-      }));
-    })
-    .flat(); 
-}, [topics]);
 
+  const processedTopics = useMemo(() => {
+    if (!topics || !Array.isArray(topics)) return [];
+    
+    return topics.map(topic => {
+      if (!topic.activities || !Array.isArray(topic.activities)) return topic;
+      
+      return {
+        ...topic,
+        activities: topic.activities.map(activity => ({
+          ...activity,
+          isAssessment: activity.activity_type?.toUpperCase() === "ASSESSMENT" || 
+                       activity.activity_type?.toUpperCase() === "EXAM" ||
+                       activity.activity_type?.toUpperCase() === "PRACTICE_QUESTIONS" ||
+                       activity.title?.toLowerCase().includes("assessment") ||
+                       activity.title?.toLowerCase().includes("exam") ||
+                       activity.title?.toLowerCase().includes("practice")
+        }))
+      };
+    });
+  }, [topics]);
+
+  const rows = useMemo(() => {
+    if (!processedTopics || !Array.isArray(processedTopics)) return [];
+    return processedTopics
+      .map((topic) => {
+        if (!topic.activities || !Array.isArray(topic.activities)) return [];
+        return topic.activities.map((activity) => ({
+          topicTitle: topic.topic_title,
+          ...activity,
+        }));
+      })
+      .flat(); 
+  }, [processedTopics]);
 
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+  const [assessmentDialogVisible, setAssessmentDialogVisible] = useState(false);
+  const [assessmentData, setAssessmentData] = useState<any>(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -74,14 +105,59 @@ const rows = useMemo(() => {
     }
   };
 
+  const handleActivityClick = async (activity: Activity) => {
+    if (!studentId) {
+      setApiError("Missing student ID. Cannot fetch assessment data.");
+      return;
+    }
+
+    if (activity.isAssessment) {
+      setSelectedActivity(activity);
+      setAssessmentLoading(true);
+      setAssessmentDialogVisible(true);
+      setApiError(null);
+      
+      try {
+        console.log("Fetching assessment details:", {
+          studentId,
+          activityId: activity.id,
+          activityType: activity.activity_type,
+          activityTitle: activity.title
+        });
+        
+        // Fixed: Use ApiService instead of Apiservice.default
+        const response = await ApiService.getStudentAssessmentDetail(
+          studentId, 
+          activity.id.toString()
+        );
+        
+        console.log("Assessment response:", response);
+        setAssessmentData(response);
+      } catch (err: any) {
+        console.error("Error fetching assessment data:", err);
+        const errorMessage = err.response?.data?.message || 
+                            err.message || 
+                            "Failed to fetch assessment data";
+        
+        setApiError(`Error: ${errorMessage}. Student: ${studentId}, Activity: ${activity.id}`);
+        setAssessmentData(null);
+      } finally {
+        setAssessmentLoading(false);
+      }
+    }
+  };
+
   const renderStatus = (rowData: Activity) => {
     const type = (rowData.activity_type || "").toUpperCase();
     const n = parseInt((rowData.progress || "").replace("%", ""), 10);
 
-    if (type === "ASSESSMENT" || type === "EXAM") {
+    if (rowData.isAssessment) {
       const percent = isNaN(n) || n < 0 ? 0 : n;
       return (
-        <div className="flex flex-col items-center justify-center">
+        <div 
+          className={`flex flex-col items-center justify-center ${rowData.isAssessment ? 'cursor-pointer hover:bg-gray-100 p-2 rounded' : ''}`}
+          onClick={() => rowData.isAssessment && handleActivityClick(rowData)}
+        >
           <span className="font-semibold text-orange-600">{percent}%</span>
           <span className="text-gray-600 text-xs">Attempted</span>
         </div>
@@ -103,82 +179,120 @@ const rows = useMemo(() => {
         ) : (
           <>
             <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
-            <span className="text-yellow-600 text-sm">{n}% In Progress</span>
+            <span className="text-yellow-600 text-sm">{n}% Attempted</span>
           </>
         )}
       </div>
     );
   };
 
-  return (
-    <Dialog
-      header={`${studentName}'s Progress`}
-      visible={visible}
-      style={{ width: "80vw", maxWidth: "1000px" }}
-      onHide={() => {
-        setSelectedActivity(null);
-        onHide();
-      }}
-      modal
-      className="student-progress-dialog"
-    >
-      {loading ? (
-        <div className="p-4 text-center text-secondary">Loading progress data...</div>
-      ) : itemType?.toUpperCase() === "ASSESSMENT" ? (
-
-        <div className="p-6 text-center">
-          <h3 className="text-lg font-semibold mb-2">{itemName}</h3>
-          <p className="text-gray-600 mb-4">
-            Assessment Result for <b>{studentName}</b>
-          </p>
-          <div className="inline-flex flex-col items-center justify-center border rounded-lg p-6 shadow-md">
-            <span className="text-4xl font-bold text-orange-600">
-              {obtainedPercent !== null ? `${obtainedPercent}%` : "N/A"}
-            </span>
-            <span className="text-gray-500 mt-2">Obtained</span>
-          </div>
-        </div>
-      ) : rows.length === 0 ? (
-        <div className="p-4 text-center text-secondary">
-          No progress data found for this student
-        </div>
-      ) : (
-   
-        <DataTable
-          value={rows}
-          rowGroupMode="subheader"
-          groupRowsBy="topicTitle"
-          sortMode="single"
-          sortField="topicTitle"
-          sortOrder={1}
-          tableStyle={{ minWidth: "50rem" }}
-          rowGroupHeaderTemplate={(data) => (
-            <span className="font-bold">{data.topicTitle}</span>
-          )}
-          selectionMode="single"
-          onRowClick={(e) => setSelectedActivity(e.data as Activity)}
+  const renderActivityTitle = (rowData: Activity) => {
+    if (rowData.isAssessment) {
+      return (
+        <span 
+          className="text-blue-600 font-semibold cursor-pointer hover:underline"
+          onClick={() => handleActivityClick(rowData)}
         >
-          <Column field="title" header="Activity" style={{ minWidth: "250px" }} />
-          <Column
-            header="Status"
-            body={renderStatus}
-            style={{ width: "150px", textAlign: "center" }}
-          />
-          <Column
-            header="Last Activity / Attempted"
-            body={(rowData) => {
-              const type = (rowData.activity_type || "").toUpperCase();
-              if (type === "ASSESSMENT" || type === "EXAM") {
-                const n = parseInt((rowData.progress || "").replace("%", ""), 10);
-                const percent = isNaN(n) || n < 0 ? 0 : n;
-                return <span>{percent}%</span>;
-              }
-              return formatDate(rowData.last_read);
-            }}
-            style={{ minWidth: "250px" }}
-          />
-        </DataTable>
-      )}
-    </Dialog>
+          {rowData.title}
+        </span>
+      );
+    }
+    return <span>{rowData.title}</span>;
+  };
+
+  return (
+    <>
+      <Dialog
+        header={`${studentName}'s Progress`}
+        visible={visible}
+        style={{ width: "80vw", maxWidth: "1000px" }}
+        onHide={() => {
+          setSelectedActivity(null);
+          setApiError(null);
+          setAssessmentDialogVisible(false);
+          onHide();
+        }}
+        modal
+        className="student-progress-dialog"
+      >
+        {loading ? (
+          <div className="p-4 text-center text-secondary">Loading progress data...</div>
+        ) : itemType?.toUpperCase() === "ASSESSMENT" ? (
+          <div className="p-6 text-center">
+            <h3 className="text-lg font-semibold mb-2">{itemName}</h3>
+            <p className="text-gray-600 mb-4">
+              Assessment Result for <b>{studentName}</b>
+            </p>
+            <div className="inline-flex flex-col items-center justify-center border rounded-lg p-6 shadow-md">
+              <span className="text-4xl font-bold text-orange-600">
+                {obtainedPercent !== null ? `${obtainedPercent}%` : "N/A"}
+              </span>
+              <span className="text-gray-500 mt-2">Obtained</span>
+            </div>
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="p-4 text-center text-secondary">
+            No progress data found for this student
+          </div>
+        ) : (
+          <>
+            {apiError && (
+              <div className="p-3 mb-4 bg-red-100 text-red-700 rounded border border-red-200">
+                <i className="pi pi-exclamation-triangle mr-2"></i>
+                {apiError}
+              </div>
+            )}
+            <DataTable
+              value={rows}
+              rowGroupMode="subheader"
+              groupRowsBy="topicTitle"
+              sortMode="single"
+              sortField="topicTitle"
+              sortOrder={1}
+              tableStyle={{ minWidth: "50rem" }}
+              rowGroupHeaderTemplate={(data) => (
+                <span className="font-bold text-blue-800 bg-blue-50 p-2 rounded">
+                  {data.topicTitle}
+                </span>
+              )}
+            >
+              <Column
+                field="title"
+                header="Activity"
+                body={renderActivityTitle}
+                style={{ minWidth: "250px" }}
+              />
+              <Column
+                header="Status"
+                body={renderStatus}
+                style={{ width: "150px", textAlign: "center" }}
+              />
+              <Column
+                header="Last Activity / Attempted"
+                body={(rowData) => {
+                  if (rowData.isAssessment) {
+                    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+                    const percent = isNaN(n) || n < 0 ? 0 : n;
+                    return <span className="font-medium">{percent}%</span>;
+                  }
+                  return formatDate(rowData.last_read);
+                }}
+                style={{ minWidth: "200px" }}
+              />
+            </DataTable>
+          </>
+        )}
+      </Dialog>
+
+      <AssessmentResult
+        visible={assessmentDialogVisible}
+        onHide={() => setAssessmentDialogVisible(false)}
+        loading={assessmentLoading}
+        assessmentData={assessmentData}
+        studentName={studentName}
+        activityTitle={selectedActivity?.title || ""}
+        activityType={selectedActivity?.activity_type || ""}
+      />
+    </>
   );
 }

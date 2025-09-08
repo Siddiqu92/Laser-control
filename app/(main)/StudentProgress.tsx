@@ -103,7 +103,7 @@ const rows = useMemo(() => {
         ) : (
           <>
             <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
-            <span className="text-yellow-600 text-sm">{n}% In Progress</span>
+            <span className="text-yellow-600 text-sm">{n}% Attempted</span>
           </>
         )}
       </div>

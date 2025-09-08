@@ -9,8 +9,9 @@ interface AssessmentResultProps {
   assessmentData: any;
   studentName: string;
   topicTitle?: string;
+  activityType?: string;
+  activityTitle?: string;
 }
-
 
 const formatType = (rawType: string) => {
   if (!rawType) return "Unknown";

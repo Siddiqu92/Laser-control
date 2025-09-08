@@ -1,4 +1,4 @@
-// api.ts
+
 import axios from "axios";
 
 const api = axios.create({
@@ -29,7 +29,7 @@ api.interceptors.response.use(
 );
 
 export const ApiService = {
-  /** 🔑 Auth */
+  /**  Auth */
   async login(email: string, password: string) {
     const response = await api.post("/auth/login", { email, password });
     const data = response.data?.data || response.data;
@@ -42,13 +42,13 @@ export const ApiService = {
     return data;
   },
 
-  /** 🏫 Schools */
+  /**  Schools */
   async getSchools() {
     const res = await api.get(`/items/school`);
     return res.data.data;
   },
 
-  /** 👨‍🏫 Teachers */
+  /** Teachers */
   async getTeachers() {
     const res = await api.get(
       `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=teacher`
@@ -56,7 +56,7 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /** 👩‍🎓 Students */
+  /**  Students */
   async getStudents() {
     const res = await api.get(
       `/users?fields[]=id&fields[]=first_name&fields[]=last_name&filter[_and][0][role][name][_contains]=student`
@@ -64,7 +64,7 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /** 📘 Programs of Study */
+  /**  Programs of Study */
   async getProgramsOfStudy() {
     const res = await api.get(`/items/program_of_study`);
     return res.data.data;
@@ -79,31 +79,31 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /** 📚 Courses */
+  /**  Courses */
   async getCourses() {
     const res = await api.get(`/items/course`);
     return res.data.data;
   },
 
-  /** 📱 Devices */
+  /**  Devices */
   async getDevices() {
     const res = await api.get(`/items/device`);
     return res.data.data;
   },
 
-  /** 📊 Student Dashboard */
+  /**  Student Dashboard */
   async getStudentDashboard(courseId: string | number) {
     const res = await api.get(`/student-dashboard/${courseId}`);
     return res.data.data;
   },
 
-  /** 📈 Student Progress */
+  /**  Student Progress */
   async getStudentProgress(studentId: string | number, courseId: string | number) {
     const res = await api.get(`/student-progress/${studentId}/${courseId}`);
     return res.data.data;
   },
 
-  /** 📝 Student Assessment Progress */
+  /**  Student Assessment Progress */
   async getStudentAssessmentProgress(
     studentId: string | number,
     courseId: string | number,
@@ -112,8 +112,19 @@ export const ApiService = {
     const res = await api.get(
       `/student-assessment-progress/${studentId}/${courseId}/${assessmentId}`
     );
-    return res.data; // <-- return full response including status, message, data
+    return res.data; 
   },
+
+/** 📋 Student Assessment Detail */
+async getStudentAssessmentDetail(
+  studentId: string | number,
+  activityId: string | number
+) {
+  const res = await api.get(
+    `/student-assessment-detail/${studentId}/${activityId}`
+  );
+  return res.data;
+},
 };
 
 export default api;

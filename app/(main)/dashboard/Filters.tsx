@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
+import { Checkbox } from "primereact/checkbox";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { StatusValue } from "./types";
 
@@ -16,6 +17,7 @@ interface FiltersProps {
   filterOptions: {
     grades: { label: string; value: string }[];
     subjects: { label: string; value: string; courseId: string }[];
+    statuses: { label: string; value: StatusValue }[];
   };
   onLoad: (courseName: string | null) => Promise<void> | void;
   loadedCourseName: string | null;
@@ -27,6 +29,8 @@ export const Filters: React.FC<FiltersProps> = ({
   selectedSubject,
   setSelectedSubject,
   setSelectedCourseId,
+  selectedStatuses,
+  setSelectedStatuses,
   filterOptions,
   onLoad,
   loadedCourseName,
@@ -49,13 +53,14 @@ export const Filters: React.FC<FiltersProps> = ({
     });
   }, [filterOptions.grades]);
 
+  // Auto-select first subject when grade is selected
   useEffect(() => {
-    if (selectedGrade && filterOptions.subjects.length > 0) {
+    if (selectedGrade && filterOptions.subjects.length > 0 && !selectedSubject) {
       const firstSubject = filterOptions.subjects[0];
       setSelectedSubject(firstSubject.value);
       setSelectedCourseId(firstSubject.courseId);
     }
-  }, [selectedGrade, filterOptions.subjects, setSelectedSubject, setSelectedCourseId]);
+  }, [selectedGrade, filterOptions.subjects, selectedSubject, setSelectedCourseId, setSelectedSubject]);
 
   const handleLoad = async () => {
     if (!selectedGrade || !selectedSubject) {
@@ -110,6 +115,26 @@ export const Filters: React.FC<FiltersProps> = ({
             disabled={!selectedGrade || filterOptions.subjects.length === 0}
             className="w-12rem h-3rem"
           />
+
+          {/* Status Filters */}
+          {filterOptions.statuses.map((status) => (
+            <div key={status.value} className="flex align-items-center">
+              <Checkbox
+                inputId={status.value}
+                checked={selectedStatuses.includes(status.value)}
+                onChange={() =>
+                  setSelectedStatuses(
+                    selectedStatuses.includes(status.value)
+                      ? selectedStatuses.filter((s) => s !== status.value)
+                      : [...selectedStatuses, status.value]
+                  )
+                }
+              />
+              <label htmlFor={status.value} className="ml-2 text-sm">
+                {status.label}
+              </label>
+            </div>
+          ))}
 
           {/* Buttons / Loader */}
           <div className="flex gap-2 align-self-end">
