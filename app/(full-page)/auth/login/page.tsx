@@ -6,7 +6,6 @@ import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { InputText } from "primereact/inputtext";
 import { LayoutContext } from "../../../../layout/context/layoutcontext";
-import { useAuth } from "@/contexts/AuthContext"; 
 import { Message } from "primereact/message";
 
 const Login = () => {
@@ -18,7 +17,6 @@ const Login = () => {
 
   const router = useRouter();
   const { layoutConfig } = useContext(LayoutContext);
-  const { login } = useAuth(); 
   const dark = layoutConfig.colorScheme !== "light";
 
   const handleLogin = async () => {
@@ -31,20 +29,18 @@ const Login = () => {
     setError("");
 
     try {
-      const success = await login(email, password); 
-
-      if (success) {
-        if (rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-          localStorage.setItem("rememberedEmail", email);
-        } else {
-          localStorage.removeItem("rememberMe");
-          localStorage.removeItem("rememberedEmail");
-        }
-        router.push("/");
+      // Since authentication is removed, simulate successful login
+      if (rememberMe) {
+        localStorage.setItem("rememberMe", "true");
+        localStorage.setItem("rememberedEmail", email);
       } else {
-        setError("Login failed. Please check your credentials.");
+        localStorage.removeItem("rememberMe");
+        localStorage.removeItem("rememberedEmail");
       }
+      
+      // Redirect to home page
+      router.push("/");
+      
     } catch (error: any) {
       setError(error.message || "Login failed. Please check your credentials.");
     } finally {

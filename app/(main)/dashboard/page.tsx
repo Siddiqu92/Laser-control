@@ -177,7 +177,7 @@ export default function SchoolDashboard() {
         } else if (type.includes('exam')) {
           return contentFilters.exams;
         }
-        return true; // Show by default if type is not recognized
+        return true; 
       })
       .sort((a, b) => a.sort - b.sort);
   }, [dashboardData?.lessons, contentFilters]);
@@ -243,7 +243,7 @@ export default function SchoolDashboard() {
             
             {/* Content Type Filters */}
             <div className="flex align-items-center gap-3">
-              <span className="font-bold text-color-secondary">Show:</span>
+      
               <div className="flex gap-2">
                 <div className="flex align-items-center">
                   <input

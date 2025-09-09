@@ -189,7 +189,7 @@ const PracticeAssessment: React.FC<PracticeAssessmentProps> = ({
                 let isAttempted = false;
 let isCorrect = false;
 
-
+// If student attempted the question via 'attempt.questions'
 if (attempt && attempt.questions && typeof attempt.questions === "string") {
   try {
     const attemptData = JSON.parse(attempt.questions);
@@ -197,7 +197,7 @@ if (attempt && attempt.questions && typeof attempt.questions === "string") {
     
     if (qId && attemptData[qId]) {
       isAttempted = true;
-      isCorrect = attemptData[qId].is_correct === 1; 
+      isCorrect = attemptData[qId].is_correct === 1; // 1 = correct, 0 = incorrect
     }
   } catch (error) {
     console.error("Error parsing attempt questions:", error);

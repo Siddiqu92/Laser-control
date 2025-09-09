@@ -2,8 +2,6 @@
 
 import { LayoutProvider } from "../layout/context/layoutcontext";
 import { PrimeReactProvider } from "primereact/api";
-import { AuthProvider } from "../contexts/AuthContext"; // ✅ Auth context
-import ProtectedRoute from "../components/ProtectedRoute"; // ✅ Protected wrapper
 
 import "primeflex/primeflex.css";
 import "primeicons/primeicons.css";
@@ -28,10 +26,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             <body>
                 <PrimeReactProvider>
                     <LayoutProvider>
-                        {/* ✅ Global Auth + ProtectedRoute wrap */}
-                        <AuthProvider>
-                            <ProtectedRoute>{children}</ProtectedRoute>
-                        </AuthProvider>
+                        {children}
                     </LayoutProvider>
                 </PrimeReactProvider>
             </body>
