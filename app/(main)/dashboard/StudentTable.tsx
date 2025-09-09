@@ -48,76 +48,76 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     </span>
   );
 
-const lessonTemplate = (lesson: Lesson, student: Student) => {
-  const progress = student.lessons_progress.find(
-    (lp) => lp.lesson_id === lesson.id
-  );
+  const lessonTemplate = (lesson: Lesson, student: Student) => {
+    const progress = student.lessons_progress.find(
+      (lp) => lp.lesson_id === lesson.id
+    );
 
-  const studentName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
+    const studentName = `${student.first_name ?? ""} ${student.last_name ?? ""}`.trim();
 
-  const handleClick = () =>
-    onOpenProgress({
-      studentId: student.id,
-      studentName,
-      lessonId: lesson.id,
-      lessonName: lesson.name,
-      lessonType: lesson.type,
-      obtained: progress?.progress ?? null,
-    });
+    const handleClick = () =>
+      onOpenProgress({
+        studentId: student.id,
+        studentName,
+        lessonId: lesson.id,
+        lessonName: lesson.name,
+        lessonType: lesson.type,
+        obtained: progress?.progress ?? null,
+      });
 
-  const value = progress?.progress ?? null;
-  const isAssessmentOrExam =
-    lesson.type?.toLowerCase() === "assessment" ||
-    lesson.type?.toLowerCase() === "exam";
+    const value = progress?.progress ?? null;
+    const isAssessmentOrExam =
+      lesson.type?.toLowerCase() === "assessment" ||
+      lesson.type?.toLowerCase() === "exam";
 
-  return (
-    <div
-      onClick={handleClick}
-      className="flex justify-content-center align-items-center cursor-pointer hover:text-primary"
-    >
-      {isAssessmentOrExam ? (
-
-        typeof value === "number" && value > 0 ? (
-          percentPill(value)
-        ) : (
-          <i className="pi pi-times-circle text-red-500" style={{ fontSize: "1.2rem" }}></i>
-        )
-      ) : (
-       
-        <>
-          {value === null || value <= 0 || value === -1 ? (
-            <i className="pi pi-times-circle text-red-500"  style={{ fontSize: "1.2rem" }}></i> // default not started
+    return (
+      <div
+        onClick={handleClick}
+        className="flex justify-content-center align-items-center cursor-pointer hover:text-primary"
+      >
+        {isAssessmentOrExam ? (
+          typeof value === "number" && value > 0 ? (
+            percentPill(value)
           ) : (
-            getProgressIcon(value)
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
+            <i className="pi pi-times-circle text-red-500" style={{ fontSize: "1.2rem" }}></i>
+          )
+        ) : (
+          <>
+            {value === null || value <= 0 || value === -1 ? (
+              <i className="pi pi-times-circle text-red-500"  style={{ fontSize: "1.2rem" }}></i> 
+            ) : (
+              getProgressIcon(value)
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   const indexTemplate = (_: any, options: any) => (
     <span className="text-color-secondary">{first + options.rowIndex + 1}</span>
   );
 
-const lessonHeaderTemplate = (lesson: Lesson) => (
-  <div
-    className="text-center font-medium"
-    style={{
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      maxWidth: "10rem",
-      margin: "0 auto",
-    }}
-    title={lesson.name}
-  >
-    {lesson.type?.toLowerCase() === "assessment"
-      ? "Assessment" 
-      : lesson.name}  
-  </div>
-);
+  const lessonHeaderTemplate = (lesson: Lesson) => (
+    <div
+      className="text-center font-medium"
+      style={{
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        maxWidth: "10rem",
+        margin: "0 auto",
+      }}
+      title={lesson.name}
+    >
+      {lesson.name}
+    </div>
+  );
+
+  // Function to format lesson type for tooltip (without parentheses)
+  const formatLessonType = (type: string) => {
+    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  };
 
   return (
     <DataTable
@@ -194,7 +194,7 @@ const lessonHeaderTemplate = (lesson: Lesson) => (
           header={lessonHeaderTemplate(lesson)}
           body={(student: Student) => lessonTemplate(lesson, student)}
           style={{ minWidth: "10rem", textAlign: "center" }}
-          headerTooltip={`${lesson.name} (${lesson.type})`}
+          headerTooltip={`${lesson.name} - ${formatLessonType(lesson.type || '')}`}
           headerStyle={{
             background: "var(--surface-card)",
             color: "var(--text-color)",

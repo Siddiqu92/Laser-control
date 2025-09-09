@@ -27,7 +27,7 @@ export const Legend = () => {
         <span className="p-text-secondary text-sm">Attempted</span>
       </div>
       <div className="flex align-items-center gap-2">
-        <span className="pi pi-times-circle text-pink-500" style={{ fontSize: "1.1rem" }} />
+        <span className="pi pi-times-circle text-red-500" style={{ fontSize: "1.1rem" }} />
         <span className="p-text-secondary text-sm">Not Started</span>
       </div>
     </div>

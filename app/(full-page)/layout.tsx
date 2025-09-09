@@ -1,14 +1,14 @@
 import { Metadata } from "next";
 import React from "react";
 import AppConfig from "../../layout/AppConfig";
-import { AuthProvider } from '@/contexts/AuthContext'; // ADD THIS
+import { AuthProvider } from '@/contexts/AuthContext'; 
 
 interface FullPageLayoutProps {
     children: React.ReactNode;
 }
 
 export const metadata: Metadata = {
-    title: "Shama UI",
+    title: "Shama Laser Central",
     description:
         "The ultimate collection of design-agnostic, flexible and accessible React UI Components.",
 };

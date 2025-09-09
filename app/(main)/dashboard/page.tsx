@@ -35,6 +35,14 @@ export default function SchoolDashboard() {
       constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }],
     },
   });
+  
+  // New state for content type filters
+  const [contentFilters, setContentFilters] = useState({
+    learningObjects: true,
+    assessments: true,
+    exams: true
+  });
+
   useEffect(() => {
     async function fetchPrograms() {
       try {
@@ -151,16 +159,28 @@ export default function SchoolDashboard() {
     );
   }, [dashboardData?.students, selectedStatuses]);
 
- 
+  // Filter lessons based on content type filters
   const sortedLessons: Lesson[] = useMemo(() => {
     if (!dashboardData?.lessons) return [];
+    
     return [...dashboardData.lessons]
       .map((lesson) => ({
         ...lesson,
-        sort: lesson.sort ?? 0, 
+        sort: lesson.sort ?? 0,
       }))
+      .filter((lesson) => {
+        const type = lesson.type?.toLowerCase() || '';
+        if (type.includes('learning') || type.includes('object')) {
+          return contentFilters.learningObjects;
+        } else if (type.includes('assessment')) {
+          return contentFilters.assessments;
+        } else if (type.includes('exam')) {
+          return contentFilters.exams;
+        }
+        return true; // Show by default if type is not recognized
+      })
       .sort((a, b) => a.sort - b.sort);
-  }, [dashboardData?.lessons]);
+  }, [dashboardData?.lessons, contentFilters]);
 
   const onPageChange = (event: any) => {
     setFirst(event.first);
@@ -174,6 +194,14 @@ export default function SchoolDashboard() {
   const openProgressFromCell = (payload: ProgressMeta) => {
     setProgressMeta(payload);
     fetchStudentProgress(payload.studentId, payload.lessonId, payload.lessonType);
+  };
+
+  // Toggle content type filters
+  const toggleContentFilter = (type: keyof typeof contentFilters) => {
+    setContentFilters(prev => ({
+      ...prev,
+      [type]: !prev[type]
+    }));
   };
 
   if (loading)
@@ -210,7 +238,52 @@ export default function SchoolDashboard() {
             />
           </div>
 
-          <Legend />
+          <div className="flex justify-content-between align-items-center mb-3">
+            <Legend />
+            
+            {/* Content Type Filters */}
+            <div className="flex align-items-center gap-3">
+              <span className="font-bold text-color-secondary">Show:</span>
+              <div className="flex gap-2">
+                <div className="flex align-items-center">
+                  <input
+                    type="checkbox"
+                    id="learningObjectsFilter"
+                    checked={contentFilters.learningObjects}
+                    onChange={() => toggleContentFilter('learningObjects')}
+                    className="mr-2"
+                  />
+                  <label htmlFor="learningObjectsFilter" className="text-sm">
+                    Learning Objects
+                  </label>
+                </div>
+                <div className="flex align-items-center">
+                  <input
+                    type="checkbox"
+                    id="assessmentsFilter"
+                    checked={contentFilters.assessments}
+                    onChange={() => toggleContentFilter('assessments')}
+                    className="mr-2"
+                  />
+                  <label htmlFor="assessmentsFilter" className="text-sm">
+                    Assessments
+                  </label>
+                </div>
+                <div className="flex align-items-center">
+                  <input
+                    type="checkbox"
+                    id="examsFilter"
+                    checked={contentFilters.exams}
+                    onChange={() => toggleContentFilter('exams')}
+                    className="mr-2"
+                  />
+                  <label htmlFor="examsFilter" className="text-sm">
+                    Exams
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="mt-4">
             <StudentTable

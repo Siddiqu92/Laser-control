@@ -4,7 +4,7 @@ import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import AssessmentResult from "./AssessmentResult";
-import { ApiService } from "../../../service/api"; // Fixed import
+import { ApiService } from "../../../service/api";
 
 interface Activity {
   id: number;
@@ -125,14 +125,19 @@ export default function StudentProgress({
           activityTitle: activity.title
         });
         
-        // Fixed: Use ApiService instead of Apiservice.default
         const response = await ApiService.getStudentAssessmentDetail(
           studentId, 
           activity.id.toString()
         );
         
         console.log("Assessment response:", response);
-        setAssessmentData(response);
+        
+        // Check if response has data property and extract it
+        if (response && response.data) {
+          setAssessmentData(response.data);
+        } else {
+          setAssessmentData(response);
+        }
       } catch (err: any) {
         console.error("Error fetching assessment data:", err);
         const errorMessage = err.response?.data?.message || 
@@ -146,45 +151,50 @@ export default function StudentProgress({
       }
     }
   };
+const renderStatus = (rowData: Activity) => {
+  const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+  const percent = isNaN(n) || n < 0 ? 0 : n;
 
-  const renderStatus = (rowData: Activity) => {
-    const type = (rowData.activity_type || "").toUpperCase();
-    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+  let statusElement;
 
-    if (rowData.isAssessment) {
-      const percent = isNaN(n) || n < 0 ? 0 : n;
-      return (
-        <div 
-          className={`flex flex-col items-center justify-center ${rowData.isAssessment ? 'cursor-pointer hover:bg-gray-100 p-2 rounded' : ''}`}
-          onClick={() => rowData.isAssessment && handleActivityClick(rowData)}
-        >
-          <span className="font-semibold text-orange-600">{percent}%</span>
-          <span className="text-gray-600 text-xs">Attempted</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex justify-center items-center gap-2">
-        {isNaN(n) || n <= 0 ? (
-          <>
-            <i className="pi pi-times-circle text-red-500 text-lg"></i>
-            <span className="text-red-500 text-sm">Not Started</span>
-          </>
-        ) : n === 100 ? (
-          <>
-            <i className="pi pi-check-circle text-green-500 text-lg"></i>
-            <span className="text-green-500 text-sm">Completed</span>
-          </>
-        ) : (
-          <>
-            <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
-            <span className="text-yellow-600 text-sm">{n}% Attempted</span>
-          </>
-        )}
+  if (percent <= 0) {
+    statusElement = (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-times-circle text-red-500 text-lg"></i>
+        <span className="text-red-500 font-medium">Not Started</span>
       </div>
     );
-  };
+  } else if (percent === 100) {
+    statusElement = (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-check-circle text-green-500 text-lg"></i>
+        <span className="text-green-600 font-medium">Completed</span>
+      </div>
+    );
+  } else {
+    statusElement = (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
+        <span className="text-yellow-600 font-medium">{percent}%</span>
+      </div>
+    );
+  }
+
+  // 🔹 If assessment → clickable wrapper
+  if (rowData.isAssessment) {
+    return (
+      <div
+        className="cursor-pointer hover:bg-gray-100 p-2 rounded flex justify-start"
+        onClick={() => handleActivityClick(rowData)}
+      >
+        {statusElement}
+      </div>
+    );
+  }
+
+  return statusElement;
+};
+
 
   const renderActivityTitle = (rowData: Activity) => {
     if (rowData.isAssessment) {
@@ -267,18 +277,17 @@ export default function StudentProgress({
                 body={renderStatus}
                 style={{ width: "150px", textAlign: "center" }}
               />
-              <Column
-                header="Last Activity / Attempted"
-                body={(rowData) => {
-                  if (rowData.isAssessment) {
-                    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
-                    const percent = isNaN(n) || n < 0 ? 0 : n;
-                    return <span className="font-medium">{percent}%</span>;
-                  }
-                  return formatDate(rowData.last_read);
-                }}
-                style={{ minWidth: "200px" }}
-              />
+          <Column
+  header="Last Activity / Attempted"
+  body={(rowData) => {
+    if (!rowData.isAssessment) {
+      return formatDate(rowData.last_read);
+    }
+  
+    return rowData.last_read ? formatDate(rowData.last_read) : "";
+  }}
+  style={{ minWidth: "200px" }}
+/>
             </DataTable>
           </>
         )}
