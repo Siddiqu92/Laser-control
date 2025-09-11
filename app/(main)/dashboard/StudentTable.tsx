@@ -28,19 +28,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   filters,
   onOpenProgress,
 }) => {
-  // Sort lessons to ensure final exams appear last
+  // Use lessons as they are, without special sorting for final exams
   const sortedLessons = React.useMemo(() => {
-    const regularLessons = lessons.filter(lesson => 
-      !lesson.type?.toLowerCase().includes("final exam") &&
-      !lesson.name?.toLowerCase().includes("final exam")
-    );
-    
-    const finalExams = lessons.filter(lesson => 
-      lesson.type?.toLowerCase().includes("final exam") ||
-      lesson.name?.toLowerCase().includes("final exam")
-    );
-    
-    return [...regularLessons, ...finalExams];
+    return [...lessons]; // Just return a copy of the original lessons array
   }, [lessons]);
 
   const studentTemplate = (student: Student) => (
@@ -203,7 +193,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         frozen
       />
 
-      {/* Lessons - Using sortedLessons instead of lessons */}
+      {/* Lessons - Using lessons as they are, without special sorting */}
       {sortedLessons.map((lesson) => (
         <Column
           key={lesson.id}

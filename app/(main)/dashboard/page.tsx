@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FilterMatchMode, FilterOperator } from "primereact/api";
-import { ApiService } from "../../../service/api";
+
 import { Filters } from "./Filters";
 import { StudentTable } from "./StudentTable";
 import { Pagination } from "./Pagination";
@@ -9,25 +9,41 @@ import StudentProgress from "./StudentProgress";
 import AssessmentResult from "./AssessmentResult";
 import { Header } from "./Header";
 import { Legend } from "./Legend";
-import { DashboardData,  Lesson,  Student,  StatusValue,  ProgressMeta,} from "./types";
+
+import { Student, Lesson, StatusValue } from "./types";
 import { getFilteredStudents } from "./utils";
+import { usePrograms } from "../hooks/usePrograms";
+import { useDashboard } from "../hooks/useDashboard";
+import { useStudentProgress } from "../hooks/useStudentProgress";
 
 export default function SchoolDashboard() {
-  const [programs, setPrograms] = useState<any[]>([]);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { programs, loading: programsLoading } = usePrograms();
+  const {
+    dashboardData,
+    fetchDashboardData,
+    loadedCourseName,
+    loading,
+    first,
+    setFirst,
+    setDashboardData,
+  } = useDashboard();
+  const {
+    progressVisible,
+    setProgressVisible,
+    progressLoading,
+    progressData,
+    progressMeta,
+    setProgressMeta,
+    isAssessment,
+    fetchStudentProgress,
+  } = useStudentProgress(null);
+
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<StatusValue[]>([]);
-  const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10);
-  const [loadedCourseName, setLoadedCourseName] = useState<string | null>(null);
-  const [progressVisible, setProgressVisible] = useState(false);
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [progressData, setProgressData] = useState<any>(null);
-  const [progressMeta, setProgressMeta] = useState<ProgressMeta | null>(null);
-  const [isAssessment, setIsAssessment] = useState(false);
+
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     name: {
@@ -35,74 +51,14 @@ export default function SchoolDashboard() {
       constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }],
     },
   });
-  
-  // New state for content type filters
+
   const [contentFilters, setContentFilters] = useState({
     learningObjects: true,
     assessments: true,
-    exams: true
+    exams: true,
   });
 
-  useEffect(() => {
-    async function fetchPrograms() {
-      try {
-        const programsData = await ApiService.getProgramOfStudyDetailed();
-        setPrograms(programsData || []);
-      } catch (err) {
-        console.error("Error fetching programs:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPrograms();
-  }, []);
-
-  const fetchDashboardData = async (courseId: string, courseName: string) => {
-    try {
-      setLoading(true);
-      const data = await ApiService.getStudentDashboard(courseId);
-      setDashboardData(data || { lessons: [], students: [] });
-      setLoadedCourseName(courseName);
-      setFirst(0);
-    } catch (err) {
-      console.error("Error fetching dashboard data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStudentProgress = async (
-    studentId: string,
-    lessonId: number,
-    lessonType: string
-  ) => {
-    try {
-      setProgressLoading(true);
-      setProgressVisible(true);
-      setIsAssessment(lessonType.toLowerCase() === "assessment");
-
-      let response: any;
-
-      if (lessonType.toLowerCase() === "assessment") {
-        response = await ApiService.getStudentAssessmentProgress(
-          studentId,
-          selectedCourseId as string,
-          lessonId
-        );
-      } else {
-        response = await ApiService.getStudentProgress(studentId, lessonId);
-      }
-
-      const topicsData = response?.data || response || [];
-      setProgressData(topicsData);
-    } catch (err) {
-      console.error("Error fetching student progress:", err);
-      setProgressData(null);
-    } finally {
-      setProgressLoading(false);
-    }
-  };
-
+  // Auto-select first program
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -117,7 +73,13 @@ export default function SchoolDashboard() {
         }
       }
     }
-  }, [programs, selectedGrade, selectedSubject]);
+  }, [programs, selectedGrade, selectedSubject, fetchDashboardData]);
+
+  // Reset subject when grade changes
+  useEffect(() => {
+    setSelectedSubject(null);
+    setSelectedCourseId(null);
+  }, [selectedGrade]);
 
   const filterOptions = useMemo(() => {
     const grades = Array.from(new Set(programs.map((p) => p.name))).map(
@@ -146,14 +108,6 @@ export default function SchoolDashboard() {
     return { grades, subjects, statuses };
   }, [programs, selectedGrade, selectedStatuses]);
 
- 
- useEffect(() => {
-  setSelectedSubject(null);
-  setSelectedCourseId(null);
- 
-}, [selectedGrade]);
-
-
   const filteredStudents: Student[] = useMemo(() => {
     return getFilteredStudents(
       (dashboardData?.students || []) as Student[],
@@ -161,52 +115,47 @@ export default function SchoolDashboard() {
     );
   }, [dashboardData?.students, selectedStatuses]);
 
-  // Filter lessons based on content type filters
   const sortedLessons: Lesson[] = useMemo(() => {
     if (!dashboardData?.lessons) return [];
-    
+
     return [...dashboardData.lessons]
-      .map((lesson) => ({
-        ...lesson,
-        sort: lesson.sort ?? 0,
-      }))
+      .map((lesson) => ({ ...lesson, sort: lesson.sort ?? 0 }))
       .filter((lesson) => {
-        const type = lesson.type?.toLowerCase() || '';
-        if (type.includes('learning') || type.includes('object')) {
+        const type = lesson.type?.toLowerCase() || "";
+        if (type.includes("learning") || type.includes("object")) {
           return contentFilters.learningObjects;
-        } else if (type.includes('assessment')) {
+        } else if (type.includes("assessment")) {
           return contentFilters.assessments;
-        } else if (type.includes('exam')) {
+        } else if (type.includes("exam")) {
           return contentFilters.exams;
         }
-        return true; 
+        return true;
       })
       .sort((a, b) => a.sort - b.sort);
   }, [dashboardData?.lessons, contentFilters]);
+
+  const currentPageStudents = useMemo(() => {
+    return filteredStudents.slice(first, first + rows);
+  }, [filteredStudents, first, rows]);
 
   const onPageChange = (event: any) => {
     setFirst(event.first);
     setRows(event.rows);
   };
 
-  const currentPageStudents = useMemo(() => {
-    return filteredStudents.slice(first, first + rows);
-  }, [filteredStudents, first, rows]);
-
-  const openProgressFromCell = (payload: ProgressMeta) => {
+  const openProgressFromCell = (payload: any) => {
     setProgressMeta(payload);
     fetchStudentProgress(payload.studentId, payload.lessonId, payload.lessonType);
   };
 
-  // Toggle content type filters
   const toggleContentFilter = (type: keyof typeof contentFilters) => {
-    setContentFilters(prev => ({
+    setContentFilters((prev) => ({
       ...prev,
-      [type]: !prev[type]
+      [type]: !prev[type],
     }));
   };
 
-  if (loading)
+  if (loading || programsLoading)
     return (
       <div className="flex justify-content-center align-items-center min-h-screen">
         Loading data...
@@ -227,7 +176,7 @@ export default function SchoolDashboard() {
               setSelectedSubject={setSelectedSubject}
               setSelectedCourseId={setSelectedCourseId}
               selectedStatuses={selectedStatuses}
-              setSelectedStatuses={setSelectedStatuses} 
+              setSelectedStatuses={setSelectedStatuses}
               filterOptions={filterOptions}
               loadedCourseName={loadedCourseName}
               onLoad={() => {
@@ -242,47 +191,27 @@ export default function SchoolDashboard() {
 
           <div className="flex justify-content-between align-items-center mb-3">
             <Legend />
-            
-            {/* Content Type Filters */}
             <div className="flex align-items-center gap-3">
-      
               <div className="flex gap-2">
-                <div className="flex align-items-center">
-                  <input
-                    type="checkbox"
-                    id="learningObjectsFilter"
-                    checked={contentFilters.learningObjects}
-                    onChange={() => toggleContentFilter('learningObjects')}
-                    className="mr-2"
-                  />
-                  <label htmlFor="learningObjectsFilter" className="text-sm">
-                    Learning Objects
-                  </label>
-                </div>
-                <div className="flex align-items-center">
-                  <input
-                    type="checkbox"
-                    id="assessmentsFilter"
-                    checked={contentFilters.assessments}
-                    onChange={() => toggleContentFilter('assessments')}
-                    className="mr-2"
-                  />
-                  <label htmlFor="assessmentsFilter" className="text-sm">
-                    Assessments
-                  </label>
-                </div>
-                <div className="flex align-items-center">
-                  <input
-                    type="checkbox"
-                    id="examsFilter"
-                    checked={contentFilters.exams}
-                    onChange={() => toggleContentFilter('exams')}
-                    className="mr-2"
-                  />
-                  <label htmlFor="examsFilter" className="text-sm">
-                    Exams
-                  </label>
-                </div>
+                {["learningObjects", "assessments", "exams"].map((filter) => (
+                  <div key={filter} className="flex align-items-center">
+                    <input
+                      type="checkbox"
+                      id={`${filter}Filter`}
+                      checked={contentFilters[filter as keyof typeof contentFilters]}
+                      onChange={() =>
+                        toggleContentFilter(filter as keyof typeof contentFilters)
+                      }
+                      className="mr-2"
+                    />
+                    <label
+                      htmlFor={`${filter}Filter`}
+                      className="text-sm"
+                    >
+                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                    </label>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -318,23 +247,22 @@ export default function SchoolDashboard() {
           studentName={progressMeta?.studentName || "Student"}
         />
       ) : (
-
-<StudentProgress
-  visible={progressVisible}
-  onHide={() => setProgressVisible(false)}
-  loading={progressLoading}
-  topics={progressData}
-  itemName={progressMeta?.lessonName || ""}
-  itemType={progressMeta?.lessonType || ""}
-  obtainedPercent={
-    typeof progressMeta?.obtained === "number"
-      ? progressMeta?.obtained
-      : null
-  }
-  studentName={progressMeta?.studentName || "Student"}
-  studentId={progressMeta?.studentId || ""} 
-  courseId={selectedCourseId || ""} 
-/>
+        <StudentProgress
+          visible={progressVisible}
+          onHide={() => setProgressVisible(false)}
+          loading={progressLoading}
+          topics={progressData}
+          itemName={progressMeta?.lessonName || ""}
+          itemType={progressMeta?.lessonType || ""}
+          obtainedPercent={
+            typeof progressMeta?.obtained === "number"
+              ? progressMeta?.obtained
+              : null
+          }
+          studentName={progressMeta?.studentName || "Student"}
+          studentId={progressMeta?.studentId || ""}
+          courseId={selectedCourseId || ""}
+        />
       )}
     </div>
   );

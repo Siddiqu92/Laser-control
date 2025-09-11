@@ -114,16 +114,6 @@ export const ApiService = {
     return res.data; 
   },
 
-  /** 📋 Student Assessment Detail */
-  async getStudentAssessmentDetail(
-    studentId: string | number,
-    activityId: string | number
-  ) {
-    const res = await api.get(
-      `/student-assessment-detail/${studentId}/${activityId}`
-    );
-    return res.data;
-  },
 
   /** 📋 Student Quiz/Assessment/Exam Detail */
   async getQuizDetail(

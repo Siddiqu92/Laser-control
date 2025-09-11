@@ -123,7 +123,7 @@ export default function StudentProgress({
       setApiError(null);
 
       try {
-        // Map activity_type -> API type
+       
         let type: "practice" | "assessment" | "exam" = "assessment";
         if (activity.activity_type?.toUpperCase().includes("PRACTICE")) {
           type = "practice";
