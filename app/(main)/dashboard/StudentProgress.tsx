@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import AssessmentResult from "./AssessmentResult";
+import PracticeAssessment from "./PracticeAssessment";
 import { ApiService } from "../../../service/api";
 
 interface Activity {
@@ -30,7 +30,7 @@ interface StudentProgressProps {
   studentId?: string;
   courseId?: string;
   itemName?: string;
-  itemType?: string;   
+  itemType?: string;
   obtainedPercent?: number | null;
 }
 
@@ -46,24 +46,28 @@ export default function StudentProgress({
   itemType = "",
   obtainedPercent = null,
 }: StudentProgressProps) {
-
   const processedTopics = useMemo(() => {
     if (!topics || !Array.isArray(topics)) return [];
-    
-    return topics.map(topic => {
+
+    return topics.map((topic) => {
       if (!topic.activities || !Array.isArray(topic.activities)) return topic;
-      
+
       return {
         ...topic,
-        activities: topic.activities.map(activity => ({
-          ...activity,
-          isAssessment: activity.activity_type?.toUpperCase() === "ASSESSMENT" || 
-                       activity.activity_type?.toUpperCase() === "EXAM" ||
-                       activity.activity_type?.toUpperCase() === "PRACTICE_QUESTIONS" ||
-                       activity.title?.toLowerCase().includes("assessment") ||
-                       activity.title?.toLowerCase().includes("exam") ||
-                       activity.title?.toLowerCase().includes("practice")
-        }))
+        activities: topic.activities.map((activity) => {
+          const isAssessment =
+            activity.activity_type?.toUpperCase() === "ASSESSMENT" ||
+            activity.activity_type?.toUpperCase() === "EXAM" ||
+            activity.activity_type?.toUpperCase() === "PRACTICE_QUESTIONS" ||
+            activity.title?.toLowerCase().includes("assessment") ||
+            activity.title?.toLowerCase().includes("exam") ||
+            activity.title?.toLowerCase().includes("practice");
+
+          return {
+            ...activity,
+            isAssessment,
+          };
+        }),
       };
     });
   }, [topics]);
@@ -78,7 +82,7 @@ export default function StudentProgress({
           ...activity,
         }));
       })
-      .flat(); 
+      .flat();
   }, [processedTopics]);
 
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
@@ -105,9 +109,10 @@ export default function StudentProgress({
     }
   };
 
+  // 🔹 Corrected: Use quiz detail API with (studentId, quizId, type)
   const handleActivityClick = async (activity: Activity) => {
     if (!studentId) {
-      setApiError("Missing student ID. Cannot fetch assessment data.");
+      setApiError("Missing student ID. Cannot fetch quiz data.");
       return;
     }
 
@@ -116,90 +121,95 @@ export default function StudentProgress({
       setAssessmentLoading(true);
       setAssessmentDialogVisible(true);
       setApiError(null);
-      
+
       try {
-        console.log("Fetching assessment details:", {
+        // Map activity_type -> API type
+        let type: "practice" | "assessment" | "exam" = "assessment";
+        if (activity.activity_type?.toUpperCase().includes("PRACTICE")) {
+          type = "practice";
+        } else if (activity.activity_type?.toUpperCase().includes("EXAM")) {
+          type = "exam";
+        }
+
+        console.log("Fetching quiz detail:", {
           studentId,
           activityId: activity.id,
-          activityType: activity.activity_type,
-          activityTitle: activity.title
+          type,
         });
-        
-        const response = await ApiService.getStudentAssessmentDetail(
-          studentId, 
-          activity.id.toString()
+
+        const response = await ApiService.getQuizDetail(
+          studentId,
+          activity.id.toString(),
+          type
         );
-        
-        console.log("Assessment response:", response);
-        
-        // Check if response has data property and extract it
-        if (response && response.data) {
-          setAssessmentData(response.data);
-        } else {
-          setAssessmentData(response);
-        }
+
+        console.log("Quiz detail response:", response);
+
+        setAssessmentData(response);
       } catch (err: any) {
-        console.error("Error fetching assessment data:", err);
-        const errorMessage = err.response?.data?.message || 
-                            err.message || 
-                            "Failed to fetch assessment data";
-        
-        setApiError(`Error: ${errorMessage}. Student: ${studentId}, Activity: ${activity.id}`);
+        console.error("Error fetching quiz detail:", err);
+        const errorMessage =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch quiz detail";
+
+        setApiError(
+          `Error: ${errorMessage}. Student: ${studentId}, Activity: ${activity.id}`
+        );
         setAssessmentData(null);
       } finally {
         setAssessmentLoading(false);
       }
     }
   };
-const renderStatus = (rowData: Activity) => {
-  const n = parseInt((rowData.progress || "").replace("%", ""), 10);
-  const percent = isNaN(n) || n < 0 ? 0 : n;
 
-  let statusElement;
+  const renderStatus = (rowData: Activity) => {
+    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+    const percent = isNaN(n) || n < 0 ? 0 : n;
 
-  if (percent <= 0) {
-    statusElement = (
-      <div className="flex items-center gap-2 w-[140px]">
-        <i className="pi pi-times-circle text-red-500 text-lg"></i>
-        <span className="text-red-500 font-medium">Not Started</span>
-      </div>
-    );
-  } else if (percent === 100) {
-    statusElement = (
-      <div className="flex items-center gap-2 w-[140px]">
-        <i className="pi pi-check-circle text-green-500 text-lg"></i>
-        <span className="text-green-600 font-medium">Completed</span>
-      </div>
-    );
-  } else {
-    statusElement = (
-      <div className="flex items-center gap-2 w-[140px]">
-        <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
-        <span className="text-yellow-600 font-medium">{percent}%</span>
-      </div>
-    );
-  }
+    let statusElement;
 
-  // 🔹 If assessment → clickable wrapper
-  if (rowData.isAssessment) {
-    return (
-      <div
-        className="cursor-pointer hover:bg-gray-100 p-2 rounded flex justify-start"
-        onClick={() => handleActivityClick(rowData)}
-      >
-        {statusElement}
-      </div>
-    );
-  }
+    if (percent <= 0) {
+      statusElement = (
+        <div className="flex items-center gap-2 w-[140px]">
+          <i className="pi pi-times-circle text-red-500 text-lg"></i>
+          <span className="text-red-500 font-medium">Not Started</span>
+        </div>
+      );
+    } else if (percent === 100) {
+      statusElement = (
+        <div className="flex items-center gap-2 w-[140px]">
+          <i className="pi pi-check-circle text-green-500 text-lg"></i>
+          <span className="text-green-600 font-medium">Completed</span>
+        </div>
+      );
+    } else {
+      statusElement = (
+        <div className="flex items-center gap-2 w-[140px]">
+          <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
+          <span className="text-yellow-600 font-medium">{percent}%</span>
+        </div>
+      );
+    }
 
-  return statusElement;
-};
+    if (rowData.isAssessment) {
+      return (
+        <div
+          className="cursor-pointer hover:bg-gray-100 p-2 rounded flex justify-start"
+          onClick={() => handleActivityClick(rowData)}
+        >
+          {statusElement}
+        </div>
+      );
+    }
 
+    return statusElement;
+  };
 
   const renderActivityTitle = (rowData: Activity) => {
     if (rowData.isAssessment) {
       return (
-        <span 
+        <span
           className="text-blue-600 font-semibold cursor-pointer hover:underline"
           onClick={() => handleActivityClick(rowData)}
         >
@@ -226,7 +236,9 @@ const renderStatus = (rowData: Activity) => {
         className="student-progress-dialog"
       >
         {loading ? (
-          <div className="p-4 text-center text-secondary">Loading progress data...</div>
+          <div className="p-4 text-center text-secondary">
+            Loading progress data...
+          </div>
         ) : itemType?.toUpperCase() === "ASSESSMENT" ? (
           <div className="p-6 text-center">
             <h3 className="text-lg font-semibold mb-2">{itemName}</h3>
@@ -277,23 +289,23 @@ const renderStatus = (rowData: Activity) => {
                 body={renderStatus}
                 style={{ width: "150px", textAlign: "center" }}
               />
-          <Column
-  header="Last Activity / Attempted"
-  body={(rowData) => {
-    if (!rowData.isAssessment) {
-      return formatDate(rowData.last_read);
-    }
-  
-    return rowData.last_read ? formatDate(rowData.last_read) : "";
-  }}
-  style={{ minWidth: "200px" }}
-/>
+              <Column
+                header="Last Activity / Attempted"
+                body={(rowData) => {
+                  if (!rowData.isAssessment) {
+                    return formatDate(rowData.last_read);
+                  }
+                  return rowData.last_read ? formatDate(rowData.last_read) : "";
+                }}
+                style={{ minWidth: "200px" }}
+              />
             </DataTable>
           </>
         )}
       </Dialog>
 
-      <AssessmentResult
+      {/* 🔹 PracticeAssessment modal now receives quiz detail data */}
+      <PracticeAssessment
         visible={assessmentDialogVisible}
         onHide={() => setAssessmentDialogVisible(false)}
         loading={assessmentLoading}
