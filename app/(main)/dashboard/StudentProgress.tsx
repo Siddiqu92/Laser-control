@@ -195,7 +195,7 @@ export default function StudentProgress({
     if (rowData.isAssessment) {
       return (
         <div
-          className="cursor-pointer hover:bg-gray-100 p-2 rounded flex justify-start"
+          
           onClick={() => handleActivityClick(rowData)}
         >
           {statusElement}

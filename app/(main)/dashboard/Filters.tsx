@@ -84,9 +84,9 @@ export const Filters: React.FC<FiltersProps> = ({
   return (
     <div className="surface-card border-1 surface-border border-round p-3 mb-4">
       <div className="flex justify-content-between align-items-center flex-wrap gap-3">
-        {/* Course Info */}
+        {/* Course Info - Always display loadedCourseName, never show fallback text */}
         <div className="text-mg font-bold text-900">
-          {loadedCourseName || "No Course Selected"}
+          {loadedCourseName}
         </div>
 
         {/* Filters and Buttons */}

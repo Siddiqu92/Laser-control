@@ -146,11 +146,13 @@ export default function SchoolDashboard() {
     return { grades, subjects, statuses };
   }, [programs, selectedGrade, selectedStatuses]);
 
-  useEffect(() => {
-    setSelectedSubject(null);
-    setSelectedCourseId(null);
-    setLoadedCourseName(null);
-  }, [selectedGrade]);
+ 
+ useEffect(() => {
+  setSelectedSubject(null);
+  setSelectedCourseId(null);
+ 
+}, [selectedGrade]);
+
 
   const filteredStudents: Student[] = useMemo(() => {
     return getFilteredStudents(

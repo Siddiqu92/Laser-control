@@ -28,6 +28,21 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   filters,
   onOpenProgress,
 }) => {
+  // Sort lessons to ensure final exams appear last
+  const sortedLessons = React.useMemo(() => {
+    const regularLessons = lessons.filter(lesson => 
+      !lesson.type?.toLowerCase().includes("final exam") &&
+      !lesson.name?.toLowerCase().includes("final exam")
+    );
+    
+    const finalExams = lessons.filter(lesson => 
+      lesson.type?.toLowerCase().includes("final exam") ||
+      lesson.name?.toLowerCase().includes("final exam")
+    );
+    
+    return [...regularLessons, ...finalExams];
+  }, [lessons]);
+
   const studentTemplate = (student: Student) => (
     <span className="text-color">
       {student.first_name} {student.last_name}
@@ -38,9 +53,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     <span
       className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
       style={{
-        background: "rgb(240, 253, 244)",
-        color: "rgb(22, 163, 74)",
-        border: "1px solid rgba(22, 163, 74, 0.125)",
+        background: "rgb(254, 252, 232)", // Light yellow background
+        color: "rgb(217, 119, 6)", // Yellow/orange text color
+        border: "1px solid rgba(217, 119, 6, 0.2)", // Subtle border
         minWidth: "2.5rem",
       }}
     >
@@ -68,7 +83,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     const value = progress?.progress ?? null;
     const isAssessmentOrExam =
       lesson.type?.toLowerCase() === "assessment" ||
-      lesson.type?.toLowerCase() === "exam";
+      lesson.type?.toLowerCase() === "exam" ||
+      lesson.type?.toLowerCase().includes("final exam");
 
     return (
       <div
@@ -187,8 +203,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         frozen
       />
 
-      {/* Lessons */}
-      {lessons.map((lesson) => (
+      {/* Lessons - Using sortedLessons instead of lessons */}
+      {sortedLessons.map((lesson) => (
         <Column
           key={lesson.id}
           header={lessonHeaderTemplate(lesson)}
