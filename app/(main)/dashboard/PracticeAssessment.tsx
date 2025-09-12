@@ -11,7 +11,9 @@ interface PracticeAssessmentProps {
   topicTitle?: string;
   activityType?: string;
   activityTitle?: string;
+  lastRead?: string | null;  
 }
+
 
 const formatType = (rawType: string) => {
   if (!rawType) return "Unknown";
@@ -22,6 +24,12 @@ const formatType = (rawType: string) => {
   return rawType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
+const formatDate = (dateString: string): string => {
+  const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+  const date = new Date(dateString);
+  return date.toLocaleDateString(undefined, options);
+};
+
 const PracticeAssessment: React.FC<PracticeAssessmentProps> = ({
   visible,
   onHide,
@@ -30,7 +38,8 @@ const PracticeAssessment: React.FC<PracticeAssessmentProps> = ({
   studentName,
   topicTitle,
   activityType,
-  activityTitle,  
+  activityTitle,
+  lastRead,  
 }) => {
 
   const renderContent = () => {
@@ -102,6 +111,7 @@ const PracticeAssessment: React.FC<PracticeAssessmentProps> = ({
         : 0);
     const totalMarks = summary?.total_marks || totalQuestions;
     const obtainedMarks = summary?.obtained_marks || correctAnswers;
+    
 
     return (
       <div className="p-3">
@@ -113,22 +123,26 @@ const PracticeAssessment: React.FC<PracticeAssessmentProps> = ({
       {/* Summary Section */}
 <div className="border-round surface-card shadow-2 p-4 mb-5 flex flex-column md:flex-row justify-content-between">
   <div>
-    {/* Assessment Name - Only show this once */}
     <div className="text-left text-lg font-medium mb-4">
-      {" "}
       <span className="font-bold">
         {activityTitle || assessment?.name || topicTitle || ""}
       </span>
     </div>
 
     <p className="mb-2 text-lg">
-      Total Questions:{" "}
-      <span className="font-semibold">{totalQuestions}</span>
+      Total Questions: <span className="font-semibold">{totalQuestions}</span>
     </p>
 
     <p className="mb-2 text-lg">
-      Total Max Points:{" "}
-      <span className="font-semibold">{totalMarks}</span>
+      Total Max Points: <span className="font-semibold">{totalMarks}</span>
+    </p>
+
+    {/* 🔹 Display last_read from API */}
+    <p className="mb-2 text-lg">
+      Last Attempt:{" "}
+      <span className="font-semibold">
+        {lastRead ? formatDate(lastRead) : "N/A"}
+      </span>
     </p>
   </div>
 

@@ -245,6 +245,8 @@ export default function SchoolDashboard() {
           loading={progressLoading}
           assessmentData={progressData}
           studentName={progressMeta?.studentName || "Student"}
+          
+  isPractice={false}
         />
       ) : (
         <StudentProgress

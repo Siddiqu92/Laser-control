@@ -102,20 +102,10 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /**  Student Assessment Progress */
-  async getStudentAssessmentProgress(
-    studentId: string | number,
-    courseId: string | number,
-    assessmentId: string | number
-  ) {
-    const res = await api.get(
-      `/student-assessment-progress/${studentId}/${courseId}/${assessmentId}`
-    );
-    return res.data; 
-  },
 
 
-  /** 📋 Student Quiz/Assessment/Exam Detail */
+
+  /**  Student Quiz/Assessment/Exam Detail */
   async getQuizDetail(
     studentId: string | number,
     quizId: string | number,

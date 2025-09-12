@@ -3,7 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
-import PracticeAssessment from "./PracticeAssessment";
+import AssessmentResult from "./AssessmentResult";
 import { ApiService } from "../../../service/api";
 
 interface Activity {
@@ -13,6 +13,7 @@ interface Activity {
   progress: string;
   last_read: string | null;
   isAssessment?: boolean;
+  topicTitle?: string;
 }
 
 interface Topic {
@@ -109,8 +110,8 @@ export default function StudentProgress({
     }
   };
 
-  // 🔹 Corrected: Use quiz detail API with (studentId, quizId, type)
-  const handleActivityClick = async (activity: Activity) => {
+
+  const handleActivityClick = async (activity: Activity & { topicTitle?: string }) => {
     if (!studentId) {
       setApiError("Missing student ID. Cannot fetch quiz data.");
       return;
@@ -196,7 +197,7 @@ export default function StudentProgress({
       return (
         <div
           
-          onClick={() => handleActivityClick(rowData)}
+          onClick={() => handleActivityClick({ ...rowData, topicTitle: rowData.topicTitle })}
         >
           {statusElement}
         </div>
@@ -304,16 +305,18 @@ export default function StudentProgress({
         )}
       </Dialog>
 
-      {/* 🔹 PracticeAssessment modal now receives quiz detail data */}
-      <PracticeAssessment
-        visible={assessmentDialogVisible}
-        onHide={() => setAssessmentDialogVisible(false)}
-        loading={assessmentLoading}
-        assessmentData={assessmentData}
-        studentName={studentName}
-        activityTitle={selectedActivity?.title || ""}
-        activityType={selectedActivity?.activity_type || ""}
-      />
+      {/*  PracticeAssessment modal now receives quiz detail data */}
+<AssessmentResult
+  visible={assessmentDialogVisible}
+  onHide={() => setAssessmentDialogVisible(false)}
+  loading={assessmentLoading}
+  assessmentData={assessmentData}
+  studentName={studentName}
+  activityTitle={selectedActivity?.title || ""}
+  lastAttempted={selectedActivity?.last_read}
+  isPractice={true} 
+/>
+
     </>
   );
 }

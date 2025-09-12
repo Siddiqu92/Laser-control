@@ -6,11 +6,13 @@ interface AssessmentResultProps {
   visible: boolean;
   onHide: () => void;
   loading: boolean;
-  assessmentData: any; // response from API
+  assessmentData: any;
   studentName: string;
   topicTitle?: string;
   activityType?: string;
   activityTitle?: string;
+  lastAttempted?: string | null;
+  isPractice?: boolean; 
 }
 
 const formatType = (rawType: string) => {
@@ -23,6 +25,17 @@ const formatType = (rawType: string) => {
   return rawType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return "Not attempted";
+  try {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, options);
+  } catch {
+    return dateString;
+  }
+};
+
 const AssessmentResult: React.FC<AssessmentResultProps> = ({
   visible,
   onHide,
@@ -30,7 +43,12 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
   assessmentData,
   studentName,
   topicTitle,
+  activityType,
+  activityTitle,
+  lastAttempted,
+  isPractice = false, 
 }) => {
+
   const renderContent = () => {
     if (loading) {
       return (
@@ -41,24 +59,86 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
       );
     }
 
-    if (!assessmentData || !assessmentData.summary) {
+    if (!assessmentData) {
       return (
         <div className="text-center p-6">
           <i className="pi pi-info-circle text-6xl text-blue-400 mb-4"></i>
-          <h4 className="text-800 mb-2">No Data</h4>
+          <h4 className="text-800 mb-2">No Assessment Data</h4>
           <p className="text-600">
-            No assessment/exam results available for this student.
+            No assessment results available for this student.
           </p>
         </div>
       );
     }
 
-    // ✅ Extract API data
-    const questions: any[] = Array.isArray(assessmentData.questions)
-      ? assessmentData.questions
-      : [];
-    const summary = assessmentData.summary;
-    const displayTitle = topicTitle || "Assessment / Exam";
+    let questions: any[] = [];
+    let summary: any = {};
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
+    let attemptedQuestions = 0;
+    let totalQuestions = 0;
+
+    if (isPractice) {
+  
+      const { assessment, attempt } = assessmentData;
+      questions = Array.isArray(assessmentData.questions) ? assessmentData.questions : [];
+      totalQuestions = questions.length;
+
+      if (attempt && attempt.questions && typeof attempt.questions === "string") {
+        try {
+          const attemptData = JSON.parse(attempt.questions);
+          const questionIds = Object.keys(attemptData);
+
+          attemptedQuestions = questionIds.length;
+
+          questionIds.forEach((qId) => {
+            if (attemptData[qId].is_correct) {
+              correctAnswers++;
+            } else {
+              incorrectAnswers++;
+            }
+          });
+        } catch (error) {
+          console.error("Error parsing attempt questions:", error);
+        }
+      } else if (questions && Array.isArray(questions)) {
+        questions.forEach((question: any) => {
+          const attempted = question.student_answer_raw !== null;
+
+          if (attempted) {
+            attemptedQuestions++;
+            if (question.is_correct) {
+              correctAnswers++;
+            } else {
+              incorrectAnswers++;
+            }
+          }
+        });
+      }
+
+  
+      summary = {
+        total_questions: totalQuestions,
+        correct_answers: correctAnswers,
+        incorrect_answers: incorrectAnswers,
+        attempted: attemptedQuestions > 0,
+        score: totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
+      };
+    } else {
+ 
+      questions = Array.isArray(assessmentData.questions) ? assessmentData.questions : [];
+      summary = assessmentData.summary || {};
+      totalQuestions = summary.total_questions || questions.length;
+      correctAnswers = summary.correct_answers || 0;
+      incorrectAnswers = summary.incorrect_answers || 0;
+      attemptedQuestions = summary.attempted ? totalQuestions : 0;
+    }
+
+    const skippedQuestions = totalQuestions - attemptedQuestions;
+    const scorePercent = summary.score || 
+                        (totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0);
+    const obtainedMarks = summary.obtained_marks || correctAnswers;
+    const displayTitle = activityTitle || topicTitle || "Assessment";
 
     return (
       <div className="p-3">
@@ -67,57 +147,62 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
           Student Name: <span className="font-bold">{studentName}</span>
         </div>
 
-        {/* Summary */}
+        {/* Summary Section */}
         <div className="border-round surface-card shadow-2 p-4 mb-5 flex flex-column md:flex-row justify-content-between">
           <div>
-            <h3 className="text-xl font-bold mb-3">{displayTitle}</h3>
+            <div className="text-left text-lg font-medium mb-4">
+              <span className="font-bold">{displayTitle}</span>
+            </div>
 
             <p className="mb-2 text-lg">
-              Total Questions:{" "}
-              <span className="font-semibold">{summary.total_questions}</span>
+              Total Questions: <span className="font-semibold">{totalQuestions}</span>
             </p>
 
             <p className="mb-2 text-lg">
               Obtained Marks:{" "}
-              <span className="font-semibold">{summary.correct_answers}</span> /{" "}
-              <span className="font-semibold">{summary.total_questions}</span>
+              <span className="font-semibold">{obtainedMarks}</span> /{" "}
+              <span className="font-semibold">{totalQuestions}</span>
             </p>
 
-            <p className="mb-0 text-lg">
-              Weight:{" "}
-              <span className="font-semibold">{summary.weight || 0}%</span>
-            </p>
+            {isPractice ? (
+      
+              <p className="mb-0 text-lg">
+                Last Attempt:{" "}
+                <span className="font-semibold">
+                  {lastAttempted ? formatDate(lastAttempted) : "Not attempted"}
+                </span>
+              </p>
+            ) : (
+          
+              <p className="mb-0 text-lg">
+                Weight:{" "}
+                <span className="font-semibold">{summary.weight || 0}%</span>
+              </p>
+            )}
           </div>
 
           <div className="mt-4 md:mt-0 text-right">
             <p className="mb-2 text-lg">
-              Attempted:{" "}
-              <span className="font-bold">
-                {summary.attempted ? summary.total_questions : 0}
-              </span>
+              Attempted: <span className="font-bold">{attemptedQuestions}</span>
             </p>
 
             <p className="mb-2 text-lg text-green-600">
-              Correct Answers:{" "}
-              <span className="font-bold">{summary.correct_answers}</span>
+              Correct Answers: <span className="font-bold">{correctAnswers}</span>
             </p>
 
             <p className="mb-2 text-lg text-red-500">
               Incorrect Answers:{" "}
-              <span className="font-bold">{summary.incorrect_answers}</span>
+              <span className="font-bold">{incorrectAnswers}</span>
             </p>
 
             <p className="mb-2 text-lg text-orange-500">
               Skipped:{" "}
-              <span className="font-bold">
-                {summary.total_questions -
-                  (summary.correct_answers + summary.incorrect_answers)}
-              </span>
+              <span className="font-bold">{skippedQuestions}</span>
             </p>
 
             <p className="mb-0 text-lg">
               Score:{" "}
-              <span className="font-bold text-primary">{summary.score}%</span>
+              <span className="font-bold text-primary">{scorePercent}%</span>
             </p>
           </div>
         </div>
@@ -145,13 +230,15 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
               </thead>
               <tbody>
                 {questions.map((q: any, i: number) => {
-                  const attempted = q.answer !== "" && q.answer !== null;
-                  const isCorrect = q.is_correct === true;
-                  const isIncorrect = q.is_correct === false && attempted;
-                  const notAttempted = !attempted;
-                  const notStarted = summary.attempted === false; // test never started
-
                   let statusEl: React.ReactNode;
+                  
+               
+                  const attempted = q.answer !== "" && q.answer !== null;
+                  const isCorrect = q.is_correct === true || q.is_correct === 1;
+                  const isIncorrect = (q.is_correct === false || q.is_correct === 0) && attempted;
+                  const notAttempted = !attempted;
+                  const notStarted = !summary.attempted;
+
                   if (notStarted) {
                     statusEl = (
                       <span className="text-gray-400 font-semibold flex align-items-center">
@@ -185,12 +272,18 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                   return (
                     <tr key={q.question_id || i} className="hover:surface-hover">
                       <td className="p-3 border">{i + 1}</td>
-                      <td className="p-3 border">{q.question}</td>
+                      <td className="p-3 border">
+                        {q.statement || q.question || "N/A"}
+                      </td>
                       <td className="p-3 border">{statusEl}</td>
                       <td className="p-3 border">
                         {q.time_spent ? `${q.time_spent}s` : "N/A"}
                       </td>
-                      <td className="p-3 border">{formatType(q.questionType)}</td>
+                      <td className="p-3 border">
+                        {formatType(
+                          q.question_type || q.type || q.questionType || ""
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -211,7 +304,7 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
 
   return (
     <Dialog
-      header="Assessment / Exam Result"
+      header="Assessment Result"
       visible={visible}
       style={{ width: "95vw", maxWidth: "1200px" }}
       onHide={onHide}
