@@ -121,9 +121,13 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   );
 
   // Function to format lesson type for tooltip (without parentheses)
-  const formatLessonType = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-  };
+ const formatLessonType = (type: string) => {
+  if (!type) return "";
+  const lower = type.toLowerCase();
+  if (lower.includes("learning_object") || lower.includes("learning object")) return "Lesson";
+  return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+};
+
 
   return (
     <DataTable
@@ -200,7 +204,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           header={lessonHeaderTemplate(lesson)}
           body={(student: Student) => lessonTemplate(lesson, student)}
           style={{ minWidth: "10rem", textAlign: "center" }}
-          headerTooltip={`${lesson.name} - ${formatLessonType(lesson.type || '')}`}
+        headerTooltip={`${lesson.name} - ${formatLessonType(lesson.type || '')}`}
           headerStyle={{
             background: "var(--surface-card)",
             color: "var(--text-color)",

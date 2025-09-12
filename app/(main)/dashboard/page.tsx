@@ -42,7 +42,7 @@ export default function SchoolDashboard() {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<StatusValue[]>([]);
-  const [rows, setRows] = useState(10);
+  const [rows, setRows] = useState(25);
 
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -204,12 +204,15 @@ export default function SchoolDashboard() {
                       }
                       className="mr-2"
                     />
-                    <label
-                      htmlFor={`${filter}Filter`}
-                      className="text-sm"
-                    >
-                      {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                    </label>
+                  <label
+  htmlFor={`${filter}Filter`}
+  className="text-sm"
+>
+  {filter === "learningObjects"
+    ? "Lesson"
+    : filter.charAt(0).toUpperCase() + filter.slice(1)}
+</label>
+
                   </div>
                 ))}
               </div>
