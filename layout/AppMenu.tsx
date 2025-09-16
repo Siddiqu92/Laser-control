@@ -1,3 +1,4 @@
+"use client";
 import type { MenuModel } from "@/types";
 import AppSubMenu from "./AppSubMenu";
 
