@@ -40,21 +40,22 @@ const AppSidebar = () => {
                         className="app-logo-icon"
                     />
 
-                    {/*  Logo Text */}
-                    {showLogoText && (
-                        <span
-                            className="app-logo-text"
-                            style={{
-                                fontFamily: "'Segoe UI', Arial, sans-serif",
-                                fontWeight: 640,
-                                fontSize: "22px",
-                                color: "#1C2A5A",
-                                lineHeight: 1,
-                            }}
-                        >
-                            Shama
-                        </span>
-                    )}
+                 {showLogoText && (
+    <span
+        className="app-logo-text"
+        style={{
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            fontWeight: 640,
+            fontSize: "22px",
+            color: "var(--text-color)", 
+            lineHeight: 1,
+        }}
+    >
+        Shama
+    </span>
+)}
+
+                
                 </Link>
 
                 <button

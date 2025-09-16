@@ -36,7 +36,7 @@ const AppConfig = (props: AppConfigProps) => {
         if (isSlim() || isSlimPlus() || isHorizontal()) {
             setLayoutState((prevState) => ({ ...prevState, resetMenu: true }));
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+   
     }, [layoutConfig.menuMode]);
 
     const onConfigButtonClick = () => {
@@ -251,7 +251,7 @@ const AppConfig = (props: AppConfigProps) => {
                                 ></RadioButton>
                                 <label htmlFor="mode7">Drawer</label>
                             </div> */}
-                            <div className="flex align-items-center gap-2 w-6">
+                            {/* <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"
                                     value={"reveal"}
@@ -260,7 +260,7 @@ const AppConfig = (props: AppConfigProps) => {
                                     inputId="mode5"
                                 ></RadioButton>
                                 <label htmlFor="mode6">Reveal</label>
-                            </div>
+                            </div> */}
                             <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"

@@ -329,7 +329,7 @@ export default function StudentProgress({
             >
               <Column
                 field="title"
-                header="Activity"
+                header="Topic"
                 body={renderActivityTitle}
                 style={{ minWidth: "250px" }}
               />
