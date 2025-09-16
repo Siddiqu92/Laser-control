@@ -1,264 +1,143 @@
 "use client";
 import type { AppMenuItemProps } from "@/types";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { Ripple } from "primereact/ripple";
 import { classNames } from "primereact/utils";
-import { useContext, useEffect, useRef } from "react";
+import { useContext } from "react";
 import { LayoutContext } from "./context/layoutcontext";
 import { MenuContext } from "./context/menucontext";
-import { useSubmenuOverlayPosition } from "./hooks/useSubmenuOverlayPosition";
 
-const AppMenuitem = (props: AppMenuItemProps) => {
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
+const AppMenuitemStatic = (props: AppMenuItemProps) => {
+  const { activeMenu, setActiveMenu } = useContext(MenuContext);
+  const { layoutConfig } = useContext(LayoutContext);
 
-    const { activeMenu, setActiveMenu } = useContext(MenuContext);
-    const {
-        isSlim,
-        isSlimPlus,
-        isHorizontal,
-        isDesktop,
-        setLayoutState,
-        layoutState,
-        layoutConfig,
-    } = useContext(LayoutContext);
-    const submenuRef = useRef<HTMLUListElement>(null);
-    const menuitemRef = useRef<HTMLLIElement>(null);
-    const item = props.item;
-    const key = props.parentKey
-        ? props.parentKey + "-" + props.index
-        : String(props.index);
-    const isActiveRoute = item!.to && pathname === item!.to;
-    const active =
-        activeMenu === key ||
-        !!(activeMenu && activeMenu.startsWith(key + "-"));
+  const item = props.item;
+  const key = props.parentKey
+    ? props.parentKey + "-" + props.index
+    : String(props.index);
 
-    useSubmenuOverlayPosition({
-        target: menuitemRef.current,
-        overlay: submenuRef.current,
-        container:
-            menuitemRef.current &&
-            menuitemRef.current.closest(".layout-menu-container"),
-        when:
-            props.root &&
-            active &&
-            (isSlim() || isSlimPlus() || isHorizontal()) &&
-            isDesktop(),
-    });
+  const active =
+    activeMenu === key || !!(activeMenu && activeMenu.startsWith(key + "-"));
 
-    useEffect(() => {
-        if (layoutState.resetMenu) {
-            setActiveMenu("");
-            setLayoutState((prevLayoutState) => ({
-                ...prevLayoutState,
-                resetMenu: false,
-            }));
+  const itemClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (item?.disabled) {
+      event.preventDefault();
+      return;
+    }
+
+    // toggle submenu for static menu
+    if (item?.items) {
+      setActiveMenu(active ? props.parentKey! : key);
+    } else {
+      setActiveMenu(key);
+    }
+
+    if (item?.command) {
+      item?.command({ originalEvent: event, item: item });
+    }
+  };
+
+  const badge = item?.badge ? (
+    <span
+      className={classNames(
+        "layout-menu-badge p-tag p-tag-rounded ml-2 uppercase",
+        {
+          [`${item?.badge}`]: true,
+          "p-tag-success": item?.badge === "new",
+          "p-tag-info": item?.badge === "updated",
         }
-    }, [layoutState.resetMenu]);
+      )}
+    >
+      {item?.badge}
+    </span>
+  ) : null;
 
-    useEffect(() => {
-        if (!(isSlim() || isSlimPlus() || isHorizontal()) && isActiveRoute) {
-            setActiveMenu(key);
-        }
-        const url = pathname + searchParams.toString();
-        const onRouteChange = () => {
-            if (!(isSlim() || isHorizontal()) && item!.to && item!.to === url) {
-                setActiveMenu(key);
-            }
-        };
-        onRouteChange();
-    }, [pathname, searchParams, layoutConfig]);
-
-    const itemClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-        //avoid processing disabled items
-        if (item!.disabled) {
-            event.preventDefault();
-            return;
-        }
-
-        // navigate with hover
-        if (props.root && (isSlim() || isHorizontal() || isSlimPlus())) {
-            const isSubmenu =
-                event.currentTarget.closest(
-                    ".layout-root-menuitem.active-menuitem > ul"
-                ) !== null;
-            if (isSubmenu)
-                setLayoutState((prevLayoutState) => ({
-                    ...prevLayoutState,
-                    menuHoverActive: true,
-                }));
-            else
-                setLayoutState((prevLayoutState) => ({
-                    ...prevLayoutState,
-                    menuHoverActive: !prevLayoutState.menuHoverActive,
-                }));
-        }
-
-        //execute command
-        if (item?.command) {
-            item?.command({ originalEvent: event, item: item });
-        }
-
-        // toggle active state
-        if (item?.items) {
-            setActiveMenu(active ? props.parentKey! : key);
-
-            if (
-                props.root &&
-                !active &&
-                (isSlim() || isHorizontal() || isSlimPlus())
-            ) {
-                setLayoutState((prevLayoutState) => ({
-                    ...prevLayoutState,
-                    overlaySubmenuActive: true,
-                }));
-            }
-        } else {
-            if (!isDesktop()) {
-                setLayoutState((prevLayoutState) => ({
-                    ...prevLayoutState,
-                    staticMenuMobileActive:
-                        !prevLayoutState.staticMenuMobileActive,
-                }));
-            }
-
-            if (isSlim() || isSlimPlus() || isHorizontal()) {
-                setLayoutState((prevLayoutState) => ({
-                    ...prevLayoutState,
-                    menuHoverActive: false,
-                }));
-            }
-
-            setActiveMenu(key);
-        }
-    };
-
-    const onMouseEnter = () => {
-        // activate item on hover
-        if (
-            props.root &&
-            (isSlim() || isHorizontal() || isSlimPlus()) &&
-            isDesktop()
-        ) {
-            if (!active && layoutState.menuHoverActive) {
-                setActiveMenu(key);
-            }
-        }
-    };
-
-    const badge = item?.badge ? (
-        <span
-            className={classNames(
-                "layout-menu-badge p-tag p-tag-rounded ml-2 uppercase",
-                {
-                    [`${item?.badge}`]: true,
-                    "p-tag-success": item?.badge === "new",
-                    "p-tag-info": item?.badge === "updated",
-                }
-            )}
-        >
-            {item?.badge}
-        </span>
+  const Menu =
+    item?.items && item?.visible !== false ? (
+      <ul>
+        {item?.items.map((child, i) => {
+          return (
+            <AppMenuitemStatic
+              item={child}
+              index={i}
+              className={child.badgeClass}
+              parentKey={key}
+              key={child.label}
+            />
+          );
+        })}
+      </ul>
     ) : null;
-    const subMenu =
-        item?.items && item?.visible !== false ? (
-            <ul ref={submenuRef}>
-                {item?.items.map((child, i) => {
-                    return (
-                        <AppMenuitem
-                            item={child}
-                            index={i}
-                            className={child.badgeClass}
-                            parentKey={key}
-                            key={child.label}
-                        />
-                    );
-                })}
-            </ul>
-        ) : null;
 
-    return (
-        <li
-            ref={menuitemRef}
-            className={classNames({
-                "layout-root-menuitem": props.root,
-                "active-menuitem": active,
-            })}
+  return (
+    <li
+      className={classNames({
+        "layout-root-menuitem": props.root,
+        "active-menuitem": active,
+        "layout-menuitem-static": true, // only static
+      })}
+      style={{
+        listStyle: "none",
+        display: "block",
+        alignItems: "center",
+      }}
+    >
+      {/* anchor if no routing */}
+      {(!item?.to || item?.items) && item?.visible !== false ? (
+        <a
+          href={item?.url}
+          onClick={(e) => itemClick(e)}
+          className={classNames(item?.class, "p-ripple layout-menuitem-link")}
+          target={item?.target}
+          tabIndex={0}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "10px 16px",
+            textDecoration: "none",
+          }}
         >
-            {props.root && item?.visible !== false && (
-                <div className="layout-menuitem-root-text">{item?.label}</div>
-            )}
-            {(!item?.to || item?.items) && item?.visible !== false ? (
-                <>
-                    <a
-                        href={item?.url}
-                        onClick={(e) => itemClick(e)}
-                        className={classNames(
-                            item?.class,
-                            "p-ripple tooltip-target"
-                        )}
-                        target={item?.target}
-                        data-pr-tooltip={item?.label}
-                        data-pr-disabled={
-                            !(
-                                isSlim() &&
-                                props.root &&
-                                !layoutState.menuHoverActive
-                            )
-                        }
-                        tabIndex={0}
-                        onMouseEnter={onMouseEnter}
-                    >
-                        <i
-                            className={classNames(
-                                "layout-menuitem-icon",
-                                item?.icon
-                            )}
-                        ></i>
-                        <span className="layout-menuitem-text">
-                            {item?.label}
-                        </span>
-                        {item?.items && (
-                            <i className="pi pi-fw pi-angle-down layout-submenu-toggler"></i>
-                        )}
-                        <Ripple />
-                    </a>
-                </>
-            ) : null}
+          <i
+            className={classNames("layout-menuitem-icon", item?.icon)}
+            style={{
+              marginRight: "8px",
+            }}
+          ></i>
+          <span className="layout-menuitem-text">{item?.label}</span>
+          {badge}
+          <Ripple />
+        </a>
+      ) : null}
 
-            {item?.to && !item?.items && item?.visible !== false ? (
-                <>
-                    <Link
-                        href={item?.to}
-                        replace={item?.replaceUrl}
-                        onClick={(e) => itemClick(e)}
-                        className={classNames(item?.class, "p-ripple ", {
-                            "active-route": isActiveRoute,
-                        })}
-                        tabIndex={0}
-                        onMouseEnter={onMouseEnter}
-                    >
-                        <i
-                            className={classNames(
-                                "layout-menuitem-icon",
-                                item?.icon
-                            )}
-                        ></i>
-                        <span className="layout-menuitem-text">
-                            {item?.label}
-                        </span>
-                        {badge}
-                        {item?.items && (
-                            <i className="pi pi-fw pi-angle-down layout-submenu-toggler"></i>
-                        )}
-                        <Ripple />
-                    </Link>
-                </>
-            ) : null}
-            {subMenu}
-        </li>
-    );
+      {/* link if routing */}
+      {item?.to && !item?.items && item?.visible !== false ? (
+        <Link
+          href={item?.to}
+          replace={item?.replaceUrl}
+          onClick={(e) => itemClick(e)}
+          className={classNames(item?.class, "p-ripple layout-menuitem-link")}
+          tabIndex={0}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "10px 16px",
+            textDecoration: "none",
+          }}
+        >
+          <i
+            className={classNames("layout-menuitem-icon", item?.icon)}
+            style={{
+              marginRight: "8px",
+            }}
+          ></i>
+          <span className="layout-menuitem-text">{item?.label}</span>
+          {badge}
+          <Ripple />
+        </Link>
+      ) : null}
+      {Menu}
+    </li>
+  );
 };
 
-export default AppMenuitem;
+export default AppMenuitemStatic;

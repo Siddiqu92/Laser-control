@@ -192,6 +192,7 @@ const AppConfig = (props: AppConfigProps) => {
                 {!props.minimal && (
                     <>
                         <h5>Menu Type</h5>
+
                         <div className="flex flex-wrap row-gap-3">
                             <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
@@ -203,6 +204,9 @@ const AppConfig = (props: AppConfigProps) => {
                                 ></RadioButton>
                                 <label htmlFor="mode1">Static</label>
                             </div>
+
+
+                            
                             <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"

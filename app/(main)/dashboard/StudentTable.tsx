@@ -120,7 +120,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     </div>
   );
 
-  // Function to format lesson type for tooltip (without parentheses)
+
  const formatLessonType = (type: string) => {
   if (!type) return "";
   const lower = type.toLowerCase();

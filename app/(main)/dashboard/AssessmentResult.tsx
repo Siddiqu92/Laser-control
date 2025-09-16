@@ -12,7 +12,7 @@ interface AssessmentResultProps {
   activityType?: string;
   activityTitle?: string;
   lastAttempted?: string | null;
-  isPractice?: boolean; 
+  isPractice?: boolean;
 }
 
 const formatType = (rawType: string) => {
@@ -28,7 +28,11 @@ const formatType = (rawType: string) => {
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return "Not attempted";
   try {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
     const date = new Date(dateString);
     return date.toLocaleDateString(undefined, options);
   } catch {
@@ -46,9 +50,8 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
   activityType,
   activityTitle,
   lastAttempted,
-  isPractice = false, 
+  isPractice = false,
 }) => {
-
   const renderContent = () => {
     if (loading) {
       return (
@@ -79,9 +82,10 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
     let totalQuestions = 0;
 
     if (isPractice) {
-  
       const { assessment, attempt } = assessmentData;
-      questions = Array.isArray(assessmentData.questions) ? assessmentData.questions : [];
+      questions = Array.isArray(assessmentData.questions)
+        ? assessmentData.questions
+        : [];
       totalQuestions = questions.length;
 
       if (attempt && attempt.questions && typeof attempt.questions === "string") {
@@ -116,17 +120,20 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
         });
       }
 
-  
       summary = {
         total_questions: totalQuestions,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
         attempted: attemptedQuestions > 0,
-        score: totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
+        score:
+          totalQuestions > 0
+            ? Math.round((correctAnswers / totalQuestions) * 100)
+            : 0,
       };
     } else {
- 
-      questions = Array.isArray(assessmentData.questions) ? assessmentData.questions : [];
+      questions = Array.isArray(assessmentData.questions)
+        ? assessmentData.questions
+        : [];
       summary = assessmentData.summary || {};
       totalQuestions = summary.total_questions || questions.length;
       correctAnswers = summary.correct_answers || 0;
@@ -134,9 +141,11 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
       attemptedQuestions = summary.attempted ? totalQuestions : 0;
     }
 
-    const skippedQuestions = totalQuestions - attemptedQuestions;
-    const scorePercent = summary.score || 
-                        (totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0);
+    const scorePercent =
+      summary.score ||
+      (totalQuestions > 0
+        ? Math.round((correctAnswers / totalQuestions) * 100)
+        : 0);
     const obtainedMarks = summary.obtained_marks || correctAnswers;
     const displayTitle = activityTitle || topicTitle || "Assessment";
 
@@ -155,7 +164,8 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             </div>
 
             <p className="mb-2 text-lg">
-              Total Questions: <span className="font-semibold">{totalQuestions}</span>
+              Total Questions:{" "}
+              <span className="font-semibold">{totalQuestions}</span>
             </p>
 
             <p className="mb-2 text-lg">
@@ -165,7 +175,6 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             </p>
 
             {isPractice ? (
-      
               <p className="mb-0 text-lg">
                 Last Attempt:{" "}
                 <span className="font-semibold">
@@ -173,7 +182,6 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                 </span>
               </p>
             ) : (
-          
               <p className="mb-0 text-lg">
                 Weight:{" "}
                 <span className="font-semibold">{summary.weight || 0}%</span>
@@ -193,11 +201,6 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             <p className="mb-2 text-lg text-red-500">
               Incorrect Answers:{" "}
               <span className="font-bold">{incorrectAnswers}</span>
-            </p>
-
-            <p className="mb-2 text-lg text-orange-500">
-              Skipped:{" "}
-              <span className="font-bold">{skippedQuestions}</span>
             </p>
 
             <p className="mb-0 text-lg">
@@ -231,26 +234,20 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
               <tbody>
                 {questions.map((q: any, i: number) => {
                   let statusEl: React.ReactNode;
-                  
-               
+
                   const attempted = q.answer !== "" && q.answer !== null;
-                  const isCorrect = q.is_correct === true || q.is_correct === 1;
-                  const isIncorrect = (q.is_correct === false || q.is_correct === 0) && attempted;
+                  const isCorrect =
+                    q.is_correct === true || q.is_correct === 1;
+                  const isIncorrect =
+                    (q.is_correct === false || q.is_correct === 0) && attempted;
                   const notAttempted = !attempted;
                   const notStarted = !summary.attempted;
 
-                  if (notStarted) {
+                  if (notStarted || notAttempted) {
                     statusEl = (
                       <span className="text-gray-400 font-semibold flex align-items-center">
                         <i className="pi pi-ban mr-2"></i>
                         Not Started
-                      </span>
-                    );
-                  } else if (notAttempted) {
-                    statusEl = (
-                      <span className="text-orange-500 font-semibold flex align-items-center">
-                        <i className="pi pi-minus-circle mr-2"></i>
-                        Skipped
                       </span>
                     );
                   } else if (isCorrect) {
@@ -270,7 +267,10 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                   }
 
                   return (
-                    <tr key={q.question_id || i} className="hover:surface-hover">
+                    <tr
+                      key={q.question_id || i}
+                      className="hover:surface-hover"
+                    >
                       <td className="p-3 border">{i + 1}</td>
                       <td className="p-3 border">
                         {q.statement || q.question || "N/A"}
@@ -281,7 +281,10 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                       </td>
                       <td className="p-3 border">
                         {formatType(
-                          q.question_type || q.type || q.questionType || ""
+                          q.question_type ||
+                            q.type ||
+                            q.questionType ||
+                            ""
                         )}
                       </td>
                     </tr>

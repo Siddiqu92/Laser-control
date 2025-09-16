@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Dialog } from "primereact/dialog";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -14,6 +14,9 @@ interface Activity {
   last_read: string | null;
   isAssessment?: boolean;
   topicTitle?: string;
+  summary?: {
+    score?: number;
+  };
 }
 
 interface Topic {
@@ -59,7 +62,7 @@ export default function StudentProgress({
           const isAssessment =
             activity.activity_type?.toUpperCase() === "ASSESSMENT" ||
             activity.activity_type?.toUpperCase() === "EXAM" ||
-            activity.activity_type?.toUpperCase() === "PRACTICE_QUESTIONS" ||
+            activity.activity_type?.toUpperCase().includes("PRACTICE") ||
             activity.title?.toLowerCase().includes("assessment") ||
             activity.title?.toLowerCase().includes("exam") ||
             activity.title?.toLowerCase().includes("practice");
@@ -73,24 +76,69 @@ export default function StudentProgress({
     });
   }, [topics]);
 
+  const [scoreByActivityId, setScoreByActivityId] = useState<Record<number, number | null>>({});
+
   const rows = useMemo(() => {
     if (!processedTopics || !Array.isArray(processedTopics)) return [];
     return processedTopics
       .map((topic) => {
         if (!topic.activities || !Array.isArray(topic.activities)) return [];
-        return topic.activities.map((activity) => ({
-          topicTitle: topic.topic_title,
-          ...activity,
-        }));
+        return topic.activities.map((activity) => {
+          const mergedScore = scoreByActivityId[activity.id] ?? activity.summary?.score;
+          return {
+            topicTitle: topic.topic_title,
+            ...activity,
+            ...(mergedScore !== undefined
+              ? { summary: { score: mergedScore as number } }
+              : {}),
+          };
+        });
       })
       .flat();
-  }, [processedTopics]);
+  }, [processedTopics, scoreByActivityId]);
 
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [assessmentDialogVisible, setAssessmentDialogVisible] = useState(false);
   const [assessmentData, setAssessmentData] = useState<any>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Pre-fetch assessment data for completed practice activities
+  useEffect(() => {
+    const fetchPracticeAssessments = async () => {
+      if (!studentId || !rows.length || !visible) return;
+      
+      const practiceActivities = rows.filter(row => 
+        row.activity_type?.toUpperCase().includes("PRACTICE") && 
+        parseInt((row.progress || "").replace("%", ""), 10) === 100
+      );
+      
+      for (const activity of practiceActivities) {
+        // Only fetch if we haven't already fetched this data
+        if (!scoreByActivityId[activity.id]) {
+          try {
+            const response = await ApiService.getQuizDetail(
+              studentId,
+              activity.id.toString(),
+              "practice"
+            );
+            
+            const score = response?.summary?.score ?? null;
+            setScoreByActivityId(prev => ({
+              ...prev,
+              [activity.id]: score
+            }));
+          } catch (err) {
+            console.error(`Failed to fetch assessment data for activity ${activity.id}:`, err);
+          }
+        }
+      }
+    };
+    
+    if (visible) {
+      fetchPracticeAssessments();
+    }
+  }, [studentId, rows, visible, scoreByActivityId]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -110,7 +158,6 @@ export default function StudentProgress({
     }
   };
 
-
   const handleActivityClick = async (activity: Activity & { topicTitle?: string }) => {
     if (!studentId) {
       setApiError("Missing student ID. Cannot fetch quiz data.");
@@ -124,7 +171,6 @@ export default function StudentProgress({
       setApiError(null);
 
       try {
-       
         let type: "practice" | "assessment" | "exam" = "assessment";
         if (activity.activity_type?.toUpperCase().includes("PRACTICE")) {
           type = "practice";
@@ -132,21 +178,18 @@ export default function StudentProgress({
           type = "exam";
         }
 
-        console.log("Fetching quiz detail:", {
-          studentId,
-          activityId: activity.id,
-          type,
-        });
-
         const response = await ApiService.getQuizDetail(
           studentId,
           activity.id.toString(),
           type
         );
 
-        console.log("Quiz detail response:", response);
+        const score = response?.summary?.score ?? null;
 
+        const updatedActivity = { ...activity, summary: { score: score ?? undefined } };
+        setSelectedActivity(updatedActivity);
         setAssessmentData(response);
+        setScoreByActivityId((prev) => ({ ...prev, [activity.id]: score }));
       } catch (err: any) {
         console.error("Error fetching quiz detail:", err);
         const errorMessage =
@@ -164,47 +207,52 @@ export default function StudentProgress({
     }
   };
 
-  const renderStatus = (rowData: Activity) => {
+  const renderStatus = (rowData: any) => {
     const n = parseInt((rowData.progress || "").replace("%", ""), 10);
     const percent = isNaN(n) || n < 0 ? 0 : n;
 
-    let statusElement;
-
+    // If not started
     if (percent <= 0) {
-      statusElement = (
+      return (
         <div className="flex items-center gap-2 w-[140px]">
           <i className="pi pi-times-circle text-red-500 text-lg"></i>
-          <span className="text-red-500 font-medium">Not Started</span>
-        </div>
-      );
-    } else if (percent === 100) {
-      statusElement = (
-        <div className="flex items-center gap-2 w-[140px]">
-          <i className="pi pi-check-circle text-green-500 text-lg"></i>
-          <span className="text-green-600 font-medium">Completed</span>
-        </div>
-      );
-    } else {
-      statusElement = (
-        <div className="flex items-center gap-2 w-[140px]">
-          <i className="pi pi-spin pi-spinner text-yellow-500 text-lg"></i>
-          <span className="text-yellow-600 font-medium">{percent}%</span>
+          <span className="text-red-600 font-medium">Not Started</span>
         </div>
       );
     }
 
-    if (rowData.isAssessment) {
-      return (
-        <div
-          
-          onClick={() => handleActivityClick({ ...rowData, topicTitle: rowData.topicTitle })}
-        >
-          {statusElement}
-        </div>
-      );
+ 
+    if (percent === 100) {
+  
+      if (rowData.activity_type?.toUpperCase().includes("PRACTICE")) {
+        const score =
+          rowData?.summary?.score !== undefined && rowData?.summary?.score !== null
+            ? rowData.summary.score
+            : percent;
+        return (
+          <div className="flex items-center gap-2 w-[140px]">
+            <i className=""></i>
+            <span className="text-green-600 font-medium">{score}%</span>
+          </div>
+        );
+      } else {
+     
+        return (
+          <div className="flex items-center gap-2 w-[140px]">
+            <i className="pi pi-check-circle text-green-500 text-lg"></i>
+            <span className="text-green-600 font-medium">Completed</span>
+          </div>
+        );
+      }
     }
 
-    return statusElement;
+   
+    return (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-spinner text-blue-500 text-lg"></i>
+        <span className="text-blue-600 font-medium">{percent}%</span>
+      </div>
+    );
   };
 
   const renderActivityTitle = (rowData: Activity) => {
@@ -305,18 +353,16 @@ export default function StudentProgress({
         )}
       </Dialog>
 
-      {/*  PracticeAssessment modal now receives quiz detail data */}
-<AssessmentResult
-  visible={assessmentDialogVisible}
-  onHide={() => setAssessmentDialogVisible(false)}
-  loading={assessmentLoading}
-  assessmentData={assessmentData}
-  studentName={studentName}
-  activityTitle={selectedActivity?.title || ""}
-  lastAttempted={selectedActivity?.last_read}
-  isPractice={true} 
-/>
-
+      <AssessmentResult
+        visible={assessmentDialogVisible}
+        onHide={() => setAssessmentDialogVisible(false)}
+        loading={assessmentLoading}
+        assessmentData={assessmentData}
+        studentName={studentName}
+        activityTitle={selectedActivity?.title || ""}
+        lastAttempted={selectedActivity?.last_read}
+        isPractice={selectedActivity?.activity_type?.toUpperCase().includes("PRACTICE") || false}
+      />
     </>
   );
 }

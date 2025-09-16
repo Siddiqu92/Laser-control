@@ -58,7 +58,7 @@ export default function SchoolDashboard() {
     exams: true,
   });
 
-  // Auto-select first program
+ 
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -75,7 +75,7 @@ export default function SchoolDashboard() {
     }
   }, [programs, selectedGrade, selectedSubject, fetchDashboardData]);
 
-  // Reset subject when grade changes
+ 
   useEffect(() => {
     setSelectedSubject(null);
     setSelectedCourseId(null);
