@@ -67,8 +67,17 @@ export default function StudentProgress({
             activity.title?.toLowerCase().includes("exam") ||
             activity.title?.toLowerCase().includes("practice");
 
+          // Clean up duplicate "Assessment" text in title
+          let cleanTitle = activity.title;
+          if (cleanTitle.includes("Assessment: Assessment:")) {
+            cleanTitle = cleanTitle.replace("Assessment: Assessment:", "Assessment:");
+          }
+          // More general cleanup for any duplicate "Assessment" text
+          cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
+
           return {
             ...activity,
+            title: cleanTitle,
             isAssessment,
           };
         }),
@@ -102,43 +111,47 @@ export default function StudentProgress({
   const [assessmentData, setAssessmentData] = useState<any>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  // Track already fetched practice activity IDs
+  const [fetchedPracticeIds, setFetchedPracticeIds] = useState<Set<number>>(new Set());
 
   // Pre-fetch assessment data for completed practice activities
   useEffect(() => {
     const fetchPracticeAssessments = async () => {
       if (!studentId || !rows.length || !visible) return;
-      
-      const practiceActivities = rows.filter(row => 
-        row.activity_type?.toUpperCase().includes("PRACTICE") && 
+
+      const practiceActivities = rows.filter(row =>
+        row.activity_type?.toUpperCase().includes("PRACTICE") &&
         parseInt((row.progress || "").replace("%", ""), 10) === 100
       );
-      
+
       for (const activity of practiceActivities) {
-        // Only fetch if we haven't already fetched this data
-        if (!scoreByActivityId[activity.id]) {
+        if (!fetchedPracticeIds.has(activity.id)) {
           try {
             const response = await ApiService.getQuizDetail(
               studentId,
               activity.id.toString(),
               "practice"
             );
-            
+
             const score = response?.summary?.score ?? null;
             setScoreByActivityId(prev => ({
               ...prev,
               [activity.id]: score
             }));
+
+            // Mark this activity as fetched
+            setFetchedPracticeIds(prev => new Set(prev).add(activity.id));
           } catch (err) {
             console.error(`Failed to fetch assessment data for activity ${activity.id}:`, err);
           }
         }
       }
     };
-    
+
     if (visible) {
       fetchPracticeAssessments();
     }
-  }, [studentId, rows, visible, scoreByActivityId]);
+  }, [studentId, rows, visible, fetchedPracticeIds]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "";
@@ -211,7 +224,7 @@ export default function StudentProgress({
     const n = parseInt((rowData.progress || "").replace("%", ""), 10);
     const percent = isNaN(n) || n < 0 ? 0 : n;
 
-    // If not started
+   
     if (percent <= 0) {
       return (
         <div className="flex items-center gap-2 w-[140px]">
@@ -256,17 +269,21 @@ export default function StudentProgress({
   };
 
   const renderActivityTitle = (rowData: Activity) => {
+    // Additional cleanup to ensure no duplicates
+    let cleanTitle = rowData.title;
+    cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
+    
     if (rowData.isAssessment) {
       return (
         <span
           className="text-blue-600 font-semibold cursor-pointer hover:underline"
           onClick={() => handleActivityClick(rowData)}
         >
-          {rowData.title}
+          {cleanTitle}
         </span>
       );
     }
-    return <span>{rowData.title}</span>;
+    return <span>{cleanTitle}</span>;
   };
 
   return (

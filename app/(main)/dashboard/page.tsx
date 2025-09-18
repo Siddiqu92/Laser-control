@@ -9,7 +9,7 @@ import StudentProgress from "./StudentProgress";
 import AssessmentResult from "./AssessmentResult";
 import { Header } from "./Header";
 import { Legend } from "./Legend";
-
+import { Checkbox } from "primereact/checkbox";
 import { Student, Lesson, StatusValue } from "./types";
 import { getFilteredStudents } from "./utils";
 import { usePrograms } from "../hooks/usePrograms";
@@ -188,36 +188,30 @@ export default function SchoolDashboard() {
               }}
             />
           </div>
+<div className="flex justify-content-between align-items-center mb-3">
+  <Legend />
+  <div className="flex align-items-center gap-3">
+    <div className="flex gap-3">
+      {["learningObjects", "assessments", "exams"].map((filter) => (
+        <div key={filter} className="flex align-items-center">
+          <Checkbox
+            inputId={`${filter}Filter`}
+            checked={contentFilters[filter as keyof typeof contentFilters]}
+            onChange={() =>
+              toggleContentFilter(filter as keyof typeof contentFilters)
+            }
+          />
+          <label htmlFor={`${filter}Filter`} className="ml-2 text-sm">
+            {filter === "learningObjects"
+              ? "Lessons"
+              : filter.charAt(0).toUpperCase() + filter.slice(1)}
+          </label>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
 
-          <div className="flex justify-content-between align-items-center mb-3">
-            <Legend />
-            <div className="flex align-items-center gap-3">
-              <div className="flex gap-2">
-                {["learningObjects", "assessments", "exams"].map((filter) => (
-                  <div key={filter} className="flex align-items-center">
-                    <input
-                      type="checkbox"
-                      id={`${filter}Filter`}
-                      checked={contentFilters[filter as keyof typeof contentFilters]}
-                      onChange={() =>
-                        toggleContentFilter(filter as keyof typeof contentFilters)
-                      }
-                      className="mr-2"
-                    />
-                  <label
-  htmlFor={`${filter}Filter`}
-  className="text-sm"
->
-  {filter === "learningObjects"
-    ? "Lesson"
-    : filter.charAt(0).toUpperCase() + filter.slice(1)}
-</label>
-
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
           <div className="mt-4">
             <StudentTable

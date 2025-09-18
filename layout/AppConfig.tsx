@@ -241,7 +241,7 @@ const AppConfig = (props: AppConfigProps) => {
                                 ></RadioButton>
                                 <label htmlFor="mode4">Slim +</label>
                             </div>
-                            {/* <div className="flex align-items-center gap-2 w-6">
+                            <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"
                                     value={"drawer"}
@@ -250,8 +250,8 @@ const AppConfig = (props: AppConfigProps) => {
                                     inputId="mode7"
                                 ></RadioButton>
                                 <label htmlFor="mode7">Drawer</label>
-                            </div> */}
-                            {/* <div className="flex align-items-center gap-2 w-6">
+                            </div>
+                            <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"
                                     value={"reveal"}
@@ -260,7 +260,7 @@ const AppConfig = (props: AppConfigProps) => {
                                     inputId="mode5"
                                 ></RadioButton>
                                 <label htmlFor="mode6">Reveal</label>
-                            </div> */}
+                            </div>
                             <div className="flex align-items-center gap-2 w-6">
                                 <RadioButton
                                     name="menuMode"

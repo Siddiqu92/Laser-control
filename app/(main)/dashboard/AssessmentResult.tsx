@@ -79,36 +79,25 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
     let correctAnswers = 0;
     let incorrectAnswers = 0;
     let attemptedQuestions = 0;
+    let notAttemptedQuestions = 0;
     let totalQuestions = 0;
+    let hasAttempted = false;
 
     if (isPractice) {
-      const { assessment, attempt } = assessmentData;
+      // Handle practice assessment data
       questions = Array.isArray(assessmentData.questions)
         ? assessmentData.questions
         : [];
       totalQuestions = questions.length;
 
-      if (attempt && attempt.questions && typeof attempt.questions === "string") {
-        try {
-          const attemptData = JSON.parse(attempt.questions);
-          const questionIds = Object.keys(attemptData);
+      // Check if assessment was attempted
+      hasAttempted = assessmentData.summary?.attempted || false;
 
-          attemptedQuestions = questionIds.length;
-
-          questionIds.forEach((qId) => {
-            if (attemptData[qId].is_correct) {
-              correctAnswers++;
-            } else {
-              incorrectAnswers++;
-            }
-          });
-        } catch (error) {
-          console.error("Error parsing attempt questions:", error);
-        }
-      } else if (questions && Array.isArray(questions)) {
+      if (hasAttempted) {
+        // Calculate metrics from actual attempt data
         questions.forEach((question: any) => {
-          const attempted = question.student_answer_raw !== null;
-
+          const attempted = question.answer !== "" && question.answer !== null;
+          
           if (attempted) {
             attemptedQuestions++;
             if (question.is_correct) {
@@ -118,35 +107,52 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             }
           }
         });
+        
+        // Calculate not attempted questions
+        notAttemptedQuestions = totalQuestions - attemptedQuestions;
+      } else {
+        // No attempt made - all questions are not attempted
+        correctAnswers = 0;
+        incorrectAnswers = 0;
+        attemptedQuestions = 0;
+        notAttemptedQuestions = totalQuestions;
       }
 
       summary = {
         total_questions: totalQuestions,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
-        attempted: attemptedQuestions > 0,
-        score:
-          totalQuestions > 0
-            ? Math.round((correctAnswers / totalQuestions) * 100)
-            : 0,
+        not_attempted: notAttemptedQuestions,
+        attempted: hasAttempted,
+        score: hasAttempted ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
       };
     } else {
+      // Handle regular assessment data
       questions = Array.isArray(assessmentData.questions)
         ? assessmentData.questions
         : [];
       summary = assessmentData.summary || {};
       totalQuestions = summary.total_questions || questions.length;
-      correctAnswers = summary.correct_answers || 0;
-      incorrectAnswers = summary.incorrect_answers || 0;
-      attemptedQuestions = summary.attempted ? totalQuestions : 0;
+      hasAttempted = summary.attempted || false;
+
+      // Ensure consistency: if not attempted, all metrics should be 0 except not attempted
+      if (hasAttempted) {
+        correctAnswers = summary.correct_answers || 0;
+        incorrectAnswers = summary.incorrect_answers || 0;
+        attemptedQuestions = summary.attempted_count || (correctAnswers + incorrectAnswers);
+        notAttemptedQuestions = summary.not_attempted || (totalQuestions - attemptedQuestions);
+      } else {
+        correctAnswers = 0;
+        incorrectAnswers = 0;
+        attemptedQuestions = 0;
+        notAttemptedQuestions = totalQuestions;
+      }
     }
 
-    const scorePercent =
-      summary.score ||
-      (totalQuestions > 0
-        ? Math.round((correctAnswers / totalQuestions) * 100)
-        : 0);
-    const obtainedMarks = summary.obtained_marks || correctAnswers;
+    const scorePercent = hasAttempted ? 
+      (summary.score || Math.round((correctAnswers / totalQuestions) * 100)) : 0;
+    
+    const obtainedMarks = hasAttempted ? correctAnswers : 0;
     const displayTitle = activityTitle || topicTitle || "Assessment";
 
     return (
@@ -169,8 +175,8 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             </p>
 
             <p className="mb-2 text-lg">
-              Obtained Marks:{" "}
-              <span className="font-semibold">{obtainedMarks}</span> /{" "}
+              Marks Obtained:{" "}
+              <span className="font-semibold">{obtainedMarks}</span> /{" "} 
               <span className="font-semibold">{totalQuestions}</span>
             </p>
 
@@ -178,7 +184,7 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
               <p className="mb-0 text-lg">
                 Last Attempt:{" "}
                 <span className="font-semibold">
-                  {lastAttempted ? formatDate(lastAttempted) : "Not attempted"}
+                  {hasAttempted && lastAttempted ? formatDate(lastAttempted) : "Not attempted"}
                 </span>
               </p>
             ) : (
@@ -201,6 +207,11 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
             <p className="mb-2 text-lg text-red-500">
               Incorrect Answers:{" "}
               <span className="font-bold">{incorrectAnswers}</span>
+            </p>
+
+            <p className="mb-2 text-lg text-orange-500">
+              Not Attempted:{" "}
+              <span className="font-bold">{notAttemptedQuestions}</span>
             </p>
 
             <p className="mb-0 text-lg">
@@ -226,40 +237,43 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                 <tr className="bg-surface-100 text-left">
                   <th className="p-3 border">#</th>
                   <th className="p-3 border">Question</th>
-                  <th className="p-3 border">Status</th>
-                  <th className="p-3 border">Time Spent</th>
-                  <th className="p-3 border">Type</th>
+                  <th className="p-3 border text-center">Status</th>
+                  <th className="p-3 border text-center">Time Spent</th>
+                  <th className="p-3 border text-center">Type</th>
                 </tr>
               </thead>
               <tbody>
                 {questions.map((q: any, i: number) => {
                   let statusEl: React.ReactNode;
 
-                  const attempted = q.answer !== "" && q.answer !== null;
-                  const isCorrect =
-                    q.is_correct === true || q.is_correct === 1;
-                  const isIncorrect =
-                    (q.is_correct === false || q.is_correct === 0) && attempted;
-                  const notAttempted = !attempted;
-                  const notStarted = !summary.attempted;
+                  const attempted = hasAttempted && (q.answer !== "" && q.answer !== null);
+                  const isCorrect = attempted && (q.is_correct === true || q.is_correct === 1);
+                  const isIncorrect = attempted && (q.is_correct === false || q.is_correct === 0);
 
-                  if (notStarted || notAttempted) {
+                  if (!hasAttempted) {
                     statusEl = (
-                      <span className="text-gray-400 font-semibold flex align-items-center">
+                      <span className="text-gray-400 font-semibold flex align-items-center justify-content-center">
                         <i className="pi pi-ban mr-2"></i>
                         Not Started
                       </span>
                     );
+                  } else if (!attempted) {
+                    statusEl = (
+                      <span className="text-orange-500 font-semibold flex align-items-center justify-content-center">
+                        <i className="pi pi-question-circle mr-2"></i>
+                        Not Attempted
+                      </span>
+                    );
                   } else if (isCorrect) {
                     statusEl = (
-                      <span className="text-green-600 font-semibold flex align-items-center">
+                      <span className="text-green-600 font-semibold flex align-items-center justify-content-center">
                         <i className="pi pi-check-circle mr-2"></i>
                         Correct
                       </span>
                     );
                   } else if (isIncorrect) {
                     statusEl = (
-                      <span className="text-red-500 font-semibold flex align-items-center">
+                      <span className="text-red-500 font-semibold flex align-items-center justify-content-center">
                         <i className="pi pi-times-circle mr-2"></i>
                         Incorrect
                       </span>
@@ -275,11 +289,11 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
                       <td className="p-3 border">
                         {q.statement || q.question || "N/A"}
                       </td>
-                      <td className="p-3 border">{statusEl}</td>
-                      <td className="p-3 border">
-                        {q.time_spent ? `${q.time_spent}s` : "N/A"}
+                      <td className="p-3 border text-center">{statusEl}</td>
+                      <td className="p-3 border text-center">
+                        {hasAttempted && q.time_spent ? `${q.time_spent}s` : "N/A"}
                       </td>
-                      <td className="p-3 border">
+                      <td className="p-3 border text-center">
                         {formatType(
                           q.question_type ||
                             q.type ||
