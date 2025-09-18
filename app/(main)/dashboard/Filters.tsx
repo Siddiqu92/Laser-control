@@ -146,13 +146,14 @@ export const Filters: React.FC<FiltersProps> = ({
                 animationDuration=".5s"
               />
             ) : (
-              <Button
-                label="Load"
-                icon="pi pi-filter"
-                size="small"
-                onClick={handleLoad}
-                className="h-3rem"
-              />
+           <Button
+  label="Load"
+  icon=""
+  onClick={handleLoad}
+  className="h-3rem px-5 text-base"
+  style={{ fontSize: "1rem", minWidth: "8rem" }}
+/>
+
             )}
           </div>
         </div>

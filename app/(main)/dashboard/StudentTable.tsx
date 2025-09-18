@@ -28,9 +28,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   filters,
   onOpenProgress,
 }) => {
-  // Use lessons as they are, without special sorting for final exams
+
   const sortedLessons = React.useMemo(() => {
-    return [...lessons]; // Just return a copy of the original lessons array
+    return [...lessons];
   }, [lessons]);
 
   const studentTemplate = (student: Student) => (
@@ -43,9 +43,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
     <span
       className="inline-block text-xs font-semibold px-2 py-1 rounded text-center"
       style={{
-        background: "rgb(254, 252, 232)", // Light yellow background
-        color: "rgb(217, 119, 6)", // Yellow/orange text color
-        border: "1px solid rgba(217, 119, 6, 0.2)", // Subtle border
+        background: "rgb(254, 252, 232)", 
+        color: "rgb(217, 119, 6)", 
+        border: "1px solid rgba(217, 119, 6, 0.2)", 
         minWidth: "2.5rem",
       }}
     >
@@ -85,12 +85,12 @@ export const StudentTable: React.FC<StudentTableProps> = ({
           typeof value === "number" && value > 0 ? (
             percentPill(value)
           ) : (
-            <i className="pi pi-times-circle text-red-500" style={{ fontSize: "1.2rem" }}></i>
+            <i className="pi pi-minus-circle" style={{ fontSize: "1.2rem", color: "#888b8f" }}></i>
           )
         ) : (
           <>
             {value === null || value <= 0 || value === -1 ? (
-              <i className="pi pi-times-circle text-red-500"  style={{ fontSize: "1.2rem" }}></i> 
+              <i className="pi pi-minus-circle" style={{ fontSize: "1.2rem", color: "#888b8f" }}></i>
             ) : (
               getProgressIcon(value)
             )}
@@ -114,7 +114,7 @@ export const StudentTable: React.FC<StudentTableProps> = ({
         maxWidth: "10rem",
         margin: "0 auto",
       }}
-      title={lesson.name}
+   
     >
       {lesson.name}
     </div>

@@ -24,21 +24,31 @@ const formatType = (rawType: string) => {
   if (type.includes("short")) return "Short Answer";
   return rawType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 };
-
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return "Not attempted";
   try {
-    const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
     const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, options);
+
+    const day = date.getDate();
+    const month = date.toLocaleString("en-US", { month: "short" });
+    const year = date.getFullYear();
+
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    };
+    const time = date.toLocaleTimeString("en-US", timeOptions);
+
+    return `${day}, ${month} , ${year}, ${time}`;
   } catch {
-    return dateString;
+    return dateString || "Invalid date";
   }
 };
+
+
+
+
 
 const AssessmentResult: React.FC<AssessmentResultProps> = ({
   visible,
@@ -84,17 +94,17 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
     let hasAttempted = false;
 
     if (isPractice) {
-      // Handle practice assessment data
+     
       questions = Array.isArray(assessmentData.questions)
         ? assessmentData.questions
         : [];
       totalQuestions = questions.length;
 
-      // Check if assessment was attempted
+  
       hasAttempted = assessmentData.summary?.attempted || false;
 
       if (hasAttempted) {
-        // Calculate metrics from actual attempt data
+       
         questions.forEach((question: any) => {
           const attempted = question.answer !== "" && question.answer !== null;
           
@@ -108,10 +118,10 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
           }
         });
         
-        // Calculate not attempted questions
+   
         notAttemptedQuestions = totalQuestions - attemptedQuestions;
       } else {
-        // No attempt made - all questions are not attempted
+       
         correctAnswers = 0;
         incorrectAnswers = 0;
         attemptedQuestions = 0;
@@ -126,28 +136,35 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
         attempted: hasAttempted,
         score: hasAttempted ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
       };
-    } else {
-      // Handle regular assessment data
-      questions = Array.isArray(assessmentData.questions)
-        ? assessmentData.questions
-        : [];
-      summary = assessmentData.summary || {};
-      totalQuestions = summary.total_questions || questions.length;
-      hasAttempted = summary.attempted || false;
+    } 
+    
+    else {
+    
 
-      // Ensure consistency: if not attempted, all metrics should be 0 except not attempted
-      if (hasAttempted) {
-        correctAnswers = summary.correct_answers || 0;
-        incorrectAnswers = summary.incorrect_answers || 0;
-        attemptedQuestions = summary.attempted_count || (correctAnswers + incorrectAnswers);
-        notAttemptedQuestions = summary.not_attempted || (totalQuestions - attemptedQuestions);
-      } else {
-        correctAnswers = 0;
-        incorrectAnswers = 0;
-        attemptedQuestions = 0;
-        notAttemptedQuestions = totalQuestions;
-      }
-    }
+  questions = Array.isArray(assessmentData.questions)
+    ? assessmentData.questions
+    : [];
+  summary = assessmentData.summary || {};
+  totalQuestions = summary.total_questions || questions.length;
+  hasAttempted = summary.attempted || false;
+
+
+  if (!lastAttempted && summary.last_attempted) {
+    lastAttempted = summary.last_attempted;
+  }
+
+  if (hasAttempted) {
+    correctAnswers = summary.correct_answers || 0;
+    incorrectAnswers = summary.incorrect_answers || 0;
+    attemptedQuestions = summary.attempted_count || (correctAnswers + incorrectAnswers);
+    notAttemptedQuestions = summary.not_attempted || (totalQuestions - attemptedQuestions);
+  } else {
+    correctAnswers = 0;
+    incorrectAnswers = 0;
+    attemptedQuestions = 0;
+    notAttemptedQuestions = totalQuestions;
+  }
+}
 
     const scorePercent = hasAttempted ? 
       (summary.score || Math.round((correctAnswers / totalQuestions) * 100)) : 0;
@@ -180,19 +197,20 @@ const AssessmentResult: React.FC<AssessmentResultProps> = ({
               <span className="font-semibold">{totalQuestions}</span>
             </p>
 
-            {isPractice ? (
-              <p className="mb-0 text-lg">
-                Last Attempt:{" "}
-                <span className="font-semibold">
-                  {hasAttempted && lastAttempted ? formatDate(lastAttempted) : "Not attempted"}
-                </span>
-              </p>
-            ) : (
-              <p className="mb-0 text-lg">
-                Weight:{" "}
-                <span className="font-semibold">{summary.weight || 0}%</span>
-              </p>
-            )}
+       <p className="mb-2 text-lg">
+  Last Attempt:{" "}
+  <span className="font-semibold">
+    {hasAttempted && lastAttempted ? formatDate(lastAttempted) : "Not attempted"}
+  </span>
+</p>
+
+{!isPractice && (
+  <p className="mb-0 text-lg">
+    Weight:{" "}
+    <span className="font-semibold">{summary.weight || 0}%</span>
+  </p>
+)}
+
           </div>
 
           <div className="mt-4 md:mt-0 text-right">

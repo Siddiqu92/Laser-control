@@ -153,23 +153,28 @@ export default function StudentProgress({
     }
   }, [studentId, rows, visible, fetchedPracticeIds]);
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "";
-    try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      }).format(date);
-    } catch {
-      return dateString;
-    }
-  };
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+
+    const day = date.getDate().toString().padStart(2, "0"); 
+    const month = date.toLocaleString("en-US", { month: "short" }); 
+    const year = date.getFullYear(); 
+
+    const time = date.toLocaleString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }); 
+
+   
+    return `${day}, ${month} , ${year}, ${time}`;
+  } catch {
+    return dateString || "";
+  }
+};
+
 
   const handleActivityClick = async (activity: Activity & { topicTitle?: string }) => {
     if (!studentId) {
@@ -225,14 +230,15 @@ export default function StudentProgress({
     const percent = isNaN(n) || n < 0 ? 0 : n;
 
    
-    if (percent <= 0) {
-      return (
-        <div className="flex items-center gap-2 w-[140px]">
-          <i className="pi pi-times-circle text-red-500 text-lg"></i>
-          <span className="text-red-600 font-medium">Not Started</span>
-        </div>
-      );
-    }
+if (percent <= 0) {
+  return (
+    <div className="flex items-center gap-2 w-[140px]">
+      <i className="pi pi-minus-circle" style={{ fontSize: "1.2rem", color: "#888b8f" }}></i>
+      <span style={{ color: "#888b8f" }} className="font-medium">Not Started</span>
+    </div>
+  );
+}
+
 
  
     if (percent === 100) {
@@ -268,23 +274,30 @@ export default function StudentProgress({
     );
   };
 
-  const renderActivityTitle = (rowData: Activity) => {
-    // Additional cleanup to ensure no duplicates
-    let cleanTitle = rowData.title;
-    cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
-    
-    if (rowData.isAssessment) {
-      return (
-        <span
-          className="text-blue-600 font-semibold cursor-pointer hover:underline"
-          onClick={() => handleActivityClick(rowData)}
-        >
-          {cleanTitle}
-        </span>
-      );
-    }
-    return <span>{cleanTitle}</span>;
-  };
+const renderActivityTitle = (rowData: Activity) => {
+
+  let cleanTitle = rowData.title;
+  cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
+
+ 
+  const baseClass =
+    "pl-6 text-gray-800"; 
+
+  if (rowData.isAssessment) {
+    return (
+      <span
+        className={`${baseClass} text-blue-600 font-semibold cursor-pointer hover:underline`}
+        onClick={() => handleActivityClick(rowData)}
+      >
+        {cleanTitle}
+      </span>
+    );
+  }
+
+  return <span className={baseClass}>{cleanTitle}</span>;
+};
+
+
 
   return (
     <>

@@ -64,11 +64,7 @@ const AppMenu = () => {
                     icon: "pi pi-fw pi-briefcase",
                     to: "/courses",
                 },
-                {
-                    label: "Classes",
-                    icon: "pi pi-fw pi-calendar",
-                    to: "/classes",
-                },
+             
             ],
         },
         {
