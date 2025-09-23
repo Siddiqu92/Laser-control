@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+ import { useState, useEffect } from "react";
+ import Link from "next/link";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -134,7 +135,7 @@ export default function CoursesPage() {
                 </div>
 
                 {/* DataTable */}
-                <DataTable
+                 <DataTable
                     value={courses}
                     paginator
                     rows={5}
@@ -144,7 +145,11 @@ export default function CoursesPage() {
                     emptyMessage="No courses found."
                     className="p-datatable-sm"
                 >
-                    <Column field="name" header="Course Name" sortable style={{ minWidth: "220px" }} />
+                     <Column header="Course Name" body={(rowData: Course) => (
+                         <Link href="/courses/courseviewer" className="text-primary hover:underline">
+                             {rowData.name}
+                         </Link>
+                     )} sortable style={{ minWidth: "220px" }} />
                     <Column field="description" header="Description" style={{ minWidth: "300px" }} />
                     <Column field="program_of_study" header="Program/Grade" style={{ width: "160px" }} />
                     <Column field="session" header="Session" style={{ width: "140px" }} />

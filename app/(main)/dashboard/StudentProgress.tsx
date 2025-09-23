@@ -67,12 +67,12 @@ export default function StudentProgress({
             activity.title?.toLowerCase().includes("exam") ||
             activity.title?.toLowerCase().includes("practice");
 
-          // Clean up duplicate "Assessment" text in title
+    
           let cleanTitle = activity.title;
           if (cleanTitle.includes("Assessment: Assessment:")) {
             cleanTitle = cleanTitle.replace("Assessment: Assessment:", "Assessment:");
           }
-          // More general cleanup for any duplicate "Assessment" text
+        
           cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
 
           return {
@@ -111,10 +111,10 @@ export default function StudentProgress({
   const [assessmentData, setAssessmentData] = useState<any>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  // Track already fetched practice activity IDs
+ 
   const [fetchedPracticeIds, setFetchedPracticeIds] = useState<Set<number>>(new Set());
 
-  // Pre-fetch assessment data for completed practice activities
+  
   useEffect(() => {
     const fetchPracticeAssessments = async () => {
       if (!studentId || !rows.length || !visible) return;
@@ -139,7 +139,7 @@ export default function StudentProgress({
               [activity.id]: score
             }));
 
-            // Mark this activity as fetched
+           
             setFetchedPracticeIds(prev => new Set(prev).add(activity.id));
           } catch (err) {
             console.error(`Failed to fetch assessment data for activity ${activity.id}:`, err);
@@ -225,68 +225,85 @@ const formatDate = (dateString: string | null): string => {
     }
   };
 
-  const renderStatus = (rowData: any) => {
-    const n = parseInt((rowData.progress || "").replace("%", ""), 10);
-    const percent = isNaN(n) || n < 0 ? 0 : n;
+ const renderStatus = (rowData: any) => {
+  const n = parseInt((rowData.progress || "").replace("%", ""), 10);
+  const percent = isNaN(n) || n < 0 ? 0 : n;
+  const isPractice = rowData.activity_type?.toUpperCase().includes("PRACTICE");
 
-   
-if (percent <= 0) {
+ 
+  if (isPractice) {
+    const rawScore = rowData?.summary?.score;
+    const hasRawScore = rawScore !== undefined && rawScore !== null;
+    const score = hasRawScore ? Number(rawScore) : percent; 
+
+
+if (score === 0) {
   return (
     <div className="flex items-center gap-2 w-[140px]">
-      <i className="pi pi-minus-circle" style={{ fontSize: "1.2rem", color: "#888b8f" }}></i>
-      <span style={{ color: "#888b8f" }} className="font-medium">Not Started</span>
+      <i className="pi pi-ban text-orange-500 text-lg"></i>
+      <span className="text-orange-500 font-medium">Not Attempted</span>
     </div>
   );
 }
 
 
  
-    if (percent === 100) {
-  
-      if (rowData.activity_type?.toUpperCase().includes("PRACTICE")) {
-        const score =
-          rowData?.summary?.score !== undefined && rowData?.summary?.score !== null
-            ? rowData.summary.score
-            : percent;
-        return (
-          <div className="flex items-center gap-2 w-[140px]">
-            <i className=""></i>
-            <span className="text-green-600 font-medium">{score}%</span>
-          </div>
-        );
-      } else {
-     
-        return (
-          <div className="flex items-center gap-2 w-[140px]">
-            <i className="pi pi-check-circle text-green-500 text-lg"></i>
-            <span className="text-green-600 font-medium">Completed</span>
-          </div>
-        );
-      }
+    if (score === 100) {
+      return (
+        <div className="flex items-center gap-2 w-[140px]">
+          <i className="pi pi-check-circle text-green-500 text-lg"></i>
+          <span className="text-green-600 font-medium">Completed</span>
+        </div>
+      );
     }
 
    
     return (
       <div className="flex items-center gap-2 w-[140px]">
-        <i className="pi pi-spinner text-blue-500 text-lg"></i>
-        <span className="text-blue-600 font-medium">{percent}%</span>
+        <span className="text-green-600 font-medium">{score}%</span>
       </div>
     );
-  };
+  }
+
+ 
+  if (percent <= 0) {
+    return (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-minus-circle text-gray-400 text-lg"></i>
+        <span className="text-gray-500 font-medium">Not Started</span>
+      </div>
+    );
+  }
+
+  if (percent === 100) {
+    return (
+      <div className="flex items-center gap-2 w-[140px]">
+        <i className="pi pi-check-circle text-green-500 text-lg"></i>
+        <span className="text-green-600 font-medium">Completed</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2 w-[140px]">
+      <i className="pi pi-spinner text-blue-500 text-lg"></i>
+      <span className="text-blue-600 font-medium">{percent}%</span>
+    </div>
+  );
+};
+
 
 const renderActivityTitle = (rowData: Activity) => {
-
   let cleanTitle = rowData.title;
   cleanTitle = cleanTitle.replace(/(Assessment: )+/g, "Assessment: ");
 
- 
-  const baseClass =
-    "pl-6 text-gray-800"; 
+
+  const baseClass = "pl-6 text-color"; 
 
   if (rowData.isAssessment) {
     return (
       <span
-        className={`${baseClass} text-blue-600 font-semibold cursor-pointer hover:underline`}
+        className={`${baseClass} font-semibold cursor-pointer hover:underline text-primary`}
         onClick={() => handleActivityClick(rowData)}
       >
         {cleanTitle}
@@ -296,6 +313,7 @@ const renderActivityTitle = (rowData: Activity) => {
 
   return <span className={baseClass}>{cleanTitle}</span>;
 };
+
 
 
 

@@ -4,7 +4,7 @@ import AppSubMenu from "./AppSubMenu";
 const AppMenu = () => {
     const model: MenuModel[] = [
         {
-            label: "Dashboard",
+            label: "",
             icon: "pi pi-home",
             items: [
                 
@@ -16,28 +16,14 @@ const AppMenu = () => {
                 },
                 
              
-            ],
-        },
-        {
-            label: "Schools",
-            icon: "pi pi-building",
-            items: [
+         
                 {
                     label: "Schools",
                     icon: "pi pi-fw pi-building",
                     to: "/schools",
                 },
-                {
-                    label: "School Details",
-                    icon: "pi pi-fw pi-info-circle",
-                    to: "/schools/details",
-                },
-            ],
-        },
-        {
-            label: "Users",
-            icon: "pi pi-users",
-            items: [
+             
+       
                 {
                     label: "Teachers",
                     icon: "pi pi-fw pi-users",
@@ -48,12 +34,7 @@ const AppMenu = () => {
                     icon: "pi pi-fw pi-user",
                     to: "/students",
                 },
-            ],
-        },
-        {
-            label: "Academics",
-            icon: "pi pi-book",
-            items: [
+           
                 {
                     label: "Programs of Study",
                     icon: "pi pi-fw pi-book",
@@ -65,30 +46,16 @@ const AppMenu = () => {
                     to: "/courses",
                 },
              
-            ],
-        },
-        {
-            label: "Resources",
-            icon: "pi pi-tablet",
-            items: [
+      
                 {
                     label: "Devices",
                     icon: "pi pi-fw pi-tablet",
                     to: "/devices",
                 },
+            
+          
                 {
-                    label: "Inventory",
-                    icon: "pi pi-fw pi-box",
-                    to: "/inventory",
-                },
-            ],
-        },
-        {
-            label: "Settings",
-            icon: "pi pi-cog",
-            items: [
-                {
-                    label: "General Settings",
+                    label: "Settings",
                     icon: "pi pi-fw pi-cog",
                     to: "/settings",
                 },
