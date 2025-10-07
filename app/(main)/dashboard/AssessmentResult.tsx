@@ -9,7 +9,7 @@ interface AssessmentResultProps {
   assessmentData: any;
   studentName: string;
   topicTitle?: string;
-  activityType?: string;
+  activityType?: string; 
   activityTitle?: string;
   lastAttempted?: string | null;
   isPractice?: boolean;

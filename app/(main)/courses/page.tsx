@@ -146,7 +146,7 @@ export default function CoursesPage() {
                     className="p-datatable-sm"
                 >
                      <Column header="Course Name" body={(rowData: Course) => (
-                         <Link href="/courses/courseviewer" className="text-primary hover:underline">
+                         <Link href={`/courses/courseviewer?courseId=${rowData.id}`} className="text-primary hover:underline">
                              {rowData.name}
                          </Link>
                      )} sortable style={{ minWidth: "220px" }} />

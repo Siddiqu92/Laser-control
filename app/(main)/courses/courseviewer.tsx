@@ -1,305 +1,463 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "primereact/card";
-import { Tree } from "primereact/tree";
 import { Button } from "primereact/button";
+import { Sidebar } from "primereact/sidebar";
 import { Avatar } from "primereact/avatar";
 import { useRouter } from "next/navigation";
-import { Accordion, AccordionTab } from "primereact/accordion";
-
-export interface CourseDetails {
-  id: number;
-  name: string;
-  description: string | null;
-  program_of_study: string | null;
-  session: string | null;
-  status: string;
-}
-
-type ComponentType = "learning_object" | "assessment" | "exam" | "fun_activity";
-
-interface CourseComponentItem {
-  component_type: ComponentType;
-  id: number;
-  sort: number;
-  learning_objects: Array<{ learning_object_id: { id: number; name: string } }>;
-  assessments: Array<{ id: number; name: string; weightage?: number }>;
-}
-
-interface CourseViewerProps {
-  course?: CourseDetails | null;
-  courseId?: string;
-}
+import { Dialog } from "primereact/dialog";
+import { Toast } from "primereact/toast";
+import { useRef } from "react";
+import api, { ApiService, CourseViewerResponse } from "@/service/api";
+import LessonTable, { LessonItem } from "./components/LessonTable";
+import CourseDetailsSidebar from "./components/CourseSidebar/CourseSidebar";
+import { 
+  CourseDetails, 
+  ComponentType, 
+  CourseViewerProps, 
+  StudentProgressData 
+} from "./types/courseTypes";
 
 export default function CourseViewer({ course: initialCourse, courseId }: CourseViewerProps) {
   const router = useRouter();
-  const [activeAccordionTab, setActiveAccordionTab] = useState<number>(0); // 0: Course Index, 1: Course Info, 2: Grading Scheme
+  const toast = useRef<Toast>(null);
+  const [activeSection, setActiveSection] = useState<string>("info");
   const [course, setCourse] = useState<CourseDetails | null>(initialCourse ?? null);
-  const [components, setComponents] = useState<CourseComponentItem[]>([]);
-  const [nodes, setNodes] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
+  const [studentProgressData, setStudentProgressData] = useState<StudentProgressData | null>(null);
+  const [students, setStudents] = useState<Array<{ id: string; first_name: string; last_name: string; avatar: string | null }>>([]);
+  const [progressDialogVisible, setProgressDialogVisible] = useState<boolean>(false);
+  const [selectedItem, setSelectedItem] = useState<{ id: number; name: string; type: ComponentType } | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [studentActivities, setStudentActivities] = useState<Array<{ id: number; title: string; activity_type: string; progress: string; last_read: string | null }>>([]);
+  const [courseComponents, setCourseComponents] = useState<CourseViewerResponse["courseComponents"] | null>(null);
+  const [courseMetadata, setCourseMetadata] = useState<CourseViewerResponse["courseMetadata"] | null>(null);
+  const [gradingScheme, setGradingScheme] = useState<CourseViewerResponse["gradingScheme"] | null>(null);
+  const [schedule, setSchedule] = useState<CourseViewerResponse["schedule"] | null>(null);
+  const [detailsSidebarVisible, setDetailsSidebarVisible] = useState<boolean>(false);
+  const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
+  const [selectedDetails, setSelectedDetails] = useState<any>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
 
-  const dummyCourse: CourseDetails = {
-    id: 81,
-    description: "G1 Urdu - I course covering basic language skills and vocabulary for Grade 1 students.",
-    status: "execute",
-    name: "G1 Urdu - I (2025-2026)",
-    session: "2025-2026",
-    program_of_study: "Grade 1",
-  } as CourseDetails;
-
-  const dummyComponents: CourseComponentItem[] = [
-    {
-      component_type: "learning_object",
-      id: 1220,
-      sort: 1,
-      learning_objects: [
-        { learning_object_id: { id: 1, name: "1- Urdu Alphabets – An Overview" } },
-        { learning_object_id: { id: 2, name: "2- Basic Vocabulary – An Overview" } },
-        { learning_object_id: { id: 3, name: "3- Sentence Formation – An Overview" } },
-        { learning_object_id: { id: 4, name: "4- Reading Practice – An Overview" } },
-      ],
-      assessments: [],
-    },
-    {
-      component_type: "assessment",
-      id: 1221,
-      sort: 2,
-      learning_objects: [],
-      assessments: [
-        { id: 5, name: "5- Alphabet Recognition Test", weightage: 10 },
-        { id: 6, name: "6- Vocabulary Assessment", weightage: 10 },
-        { id: 7, name: "7- Writing Skills Test", weightage: 10 },
-        { id: 8, name: "8- Oral Presentation", weightage: 10 },
-      ],
-    },
-    {
-      component_type: "assessment",
-      id: 1222,
-      sort: 3,
-      learning_objects: [],
-      assessments: [
-        { id: 9, name: "1- Mid-term Examination", weightage: 15 },
-        { id: 10, name: "2- Project Submission", weightage: 15 },
-        { id: 11, name: "3- Practical Assessment", weightage: 15 },
-        { id: 12, name: "4- Final Review", weightage: 15 },
-      ],
-    },
-    {
-      component_type: "learning_object",
-      id: 1223,
-      sort: 4,
-      learning_objects: [
-        { learning_object_id: { id: 13, name: "Course Information" } },
-        { learning_object_id: { id: 14, name: "Grading Scheme" } },
-      ],
-      assessments: [],
-    },
-  ];
-
-  useEffect(() => {
-    // Simulate API call
-    const localDummyCourse = dummyCourse;
-    const localDummyComponents = dummyComponents;
-
-    const timer = setTimeout(() => {
-      setCourse((prev) => prev ?? localDummyCourse);
-      setComponents(localDummyComponents);
-      setLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [courseId]);
-
-  type TreeNode = {
-    key: string;
-    label: any;
-    data?: any;
-    children?: TreeNode[];
-    draggable?: boolean;
-    droppable?: boolean;
+  const showToast = (severity: 'success' | 'error', summary: string, detail: string) => {
+    toast.current?.show({ severity, summary, detail, life: 3000 });
   };
 
-  const activityIcon = (type: ComponentType) => {
-    switch (type) {
-      case "learning_object":
-        return "📘";
-      case "assessment":
-        return "📝";
-      case "exam":
-        return "🧾";
-      case "fun_activity":
-        return "🎯";
-      default:
-        return "";
+  const handleRefreshData = () => {
+    setRefreshTrigger(prev => prev + 1);
+    showToast('success', 'Success', 'Data updated successfully');
+  };
+
+const parseJsonArrayToString = (jsonString: string, type: "grade" | "subject" | "character_voice" | "learning_object_tags"): string => {
+  if (!jsonString || jsonString === 'null' || jsonString === '""') {
+    return "";
+  }
+  
+  try {
+    if (type === "character_voice" || type === "learning_object_tags") {
+      return jsonString;
     }
-  };
+    
+    const array = JSON.parse(jsonString);
+    if (Array.isArray(array) && array.length > 0) {
+      const item = array[0];
+      if (type === "grade") {
+        return item.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      } else {
+        return item.charAt(0).toUpperCase() + item.slice(1);
+      }
+    }
+    return "";
+  } catch (error) {
+    console.error(`Error parsing ${type}:`, error);
+    return jsonString;
+  }
+};
+
+const openDetails = async (payload: any) => {
+  try {
+    setDetailsLoading(true);
+    
+    if (payload.type === 'learning_object') {
+      let learningObjectData = null;
+      
+      console.log("Searching for learning object with ID:", payload.id);
+      console.log("Student Progress Lessons:", studentProgressData?.lessons);
+      
+      if (studentProgressData?.lessons) {
+        for (const lesson of studentProgressData.lessons) {
+          if (lesson.children) {
+            for (const child of lesson.children) {
+              console.log("Checking child:", child);
+              if (child.id === payload.id && child.type === 'learning_object') {
+                learningObjectData = child;
+                console.log("Found learning object data:", learningObjectData);
+                break;
+              }
+            }
+          }
+          if (learningObjectData) break;
+        }
+      }
+      
+      if (!learningObjectData || !learningObjectData.metadata) {
+        console.log("Metadata not found in child, searching in courseComponents");
+        learningObjectData = findLearningObjectById(payload.id);
+      }
+      
+      if (learningObjectData) {
+        console.log("Final learning object data:", learningObjectData);
+        
+        const detailsData = {
+          ...payload,
+          id: learningObjectData.id,
+          name: learningObjectData.name || payload.name,
+          description: learningObjectData.description || payload.description,
+         
+          grade: learningObjectData.metadata?.grade || learningObjectData.grade,
+          subject: learningObjectData.metadata?.subject || learningObjectData.subject,
+          character_voice: learningObjectData.metadata?.character_voice || learningObjectData.character_voice,
+          learning_object_tags: learningObjectData.metadata?.learning_object_tags || learningObjectData.learning_object_tags,
+        };
+        
+        setSelectedDetails(detailsData);
+      } else {
+        console.log("No learning object data found, using payload:", payload);
+        setSelectedDetails(payload);
+      }
+    } else {
+      setSelectedDetails(payload);
+    }
+    
+    setDetailsSidebarVisible(true);
+  } catch (_e) {
+    console.error("Failed to load learning object details", _e);
+    setSelectedDetails(payload); 
+  } finally {
+    setDetailsLoading(false);
+  }
+};
+
+const findLearningObjectById = (id: number) => {
+  if (!courseComponents?.learning_objects) return null;
+  
+  console.log("Searching in courseComponents for ID:", id);
+  
+  
+  for (const lo of courseComponents.learning_objects) {
+    if (lo.id === id) {
+      console.log("Found direct learning object:", lo);
+      return lo;
+    }
+  }
+
+  
+  for (const lo of courseComponents.learning_objects) {
+    if (lo.topics && Array.isArray(lo.topics)) {
+      for (const topicGroup of lo.topics) {
+    
+        if (topicGroup && topicGroup.id === id) {
+          console.log("Found topic group:", topicGroup);
+          return topicGroup;
+        }
+        
+        if (topicGroup && typeof topicGroup === 'object' && 'topics' in topicGroup && Array.isArray(topicGroup.topics)) {
+          for (const topic of topicGroup.topics) {
+            if (topic && topic.id === id) {
+              console.log("Found topic:", topic);
+              return topic;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  console.log("Learning object not found with ID:", id);
+  return null;
+};
 
   useEffect(() => {
-    const newNodes: TreeNode[] = components
-      .sort((a, b) => a.sort - b.sort)
-      .map((comp, index) => {
-        let label = "";
-        let isHeader = false;
+    const idFromQuery = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('courseId') : null) || courseId || "";
+    if (!idFromQuery) {
+      setLoading(false);
+      return;
+    }
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await ApiService.getCourseViewer(idFromQuery);
+        const courseData: CourseDetails = data.course as CourseDetails;
+        setCourse(courseData);
+        const dashboard = data.studentProgressData as unknown as StudentProgressData;
+        setStudentProgressData(dashboard);
+        setStudents(dashboard?.students || []);
+        setCourseComponents(data.courseComponents);
+        setCourseMetadata(data.courseMetadata || null);
+        setGradingScheme(data.gradingScheme || null);
+        setSchedule(data.schedule || null);
+      } catch (err) {
+        console.error("Failed to load course viewer data", err);
+        showToast('error', 'Error', 'Failed to load course data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [courseId, refreshTrigger]);
 
-        if (comp.sort === 1) {
-          label = "Course Index";
-          isHeader = true;
-        } else if (comp.sort === 2) {
-          label = "Assessment - 1 - Weightage : 10%";
-          isHeader = true;
-        } else if (comp.sort === 3) {
-          label = "Assessment - 2 - Weightage : 15%";
-          isHeader = true;
-        } else if (comp.sort === 4) {
-          label = "Course Resources";
-          isHeader = true;
-        }
+  const getItemIcon = (type: ComponentType | string) => {
+    const lowerType = (type || '').toLowerCase();
+    
+    if (lowerType.includes('video')) {
+      return 'pi pi-video';
+    }
+    if (lowerType.includes('practice')) {
+      return 'pi pi-bolt';
+    }
+    if (lowerType.includes('learning_object')) {
+      return 'pi pi-book';
+    }
+    if (lowerType.includes('topic')) {
+      return 'pi pi-book';
+    }
+    if (lowerType.includes('assessment')) {
+      return 'pi pi-bolt';
+    }
+    if (lowerType.includes('exam')) {
+      return 'pi pi-star';
+    }
+    if (lowerType.includes('activity')) {
+      return 'pi pi-circle';
+    }
+    
+    return 'pi pi-book';
+  };
 
-        const children: TreeNode[] = [];
+const buildLessonData = (): LessonItem[] => {
+  const lessons: LessonItem[] = [];
+  const rawLessons = studentProgressData?.lessons || [];
+  const learningObjects = (courseComponents?.learning_objects || []) as any[];
+  
+  const getDefaultWeightage = (kind: 'assessment' | 'exam', item?: any): number | undefined => {
+    if (!gradingScheme) return item?.weightage;
+    if (kind === 'assessment') return item?.weightage ?? gradingScheme.assessment_weight;
+    const name: string = (item?.name || '').toLowerCase();
+    if (name.includes('mid') || name.includes('mid-term') || name.includes('mid term')) {
+      return item?.weightage ?? gradingScheme.mid_term_weight;
+    }
+    return item?.weightage ?? gradingScheme.final_exam_weight;
+  };
 
-        if (comp.component_type === "learning_object") {
-          (comp.learning_objects || []).forEach((lo, idx) => {
-            children.push({
-              key: `${comp.id}-lo-${idx}`,
-              label: (
-                <div className="flex align-items-center justify-content-between w-full">
-                  <span className="pl-3">{lo.learning_object_id.name}</span>
-                  <div className="flex gap-3 pr-2">
-                    <i className="pi pi-book text-primary cursor-pointer" />
-                    <i className="pi pi-file text-primary cursor-pointer" />
-                    <i className="pi pi-list text-primary cursor-pointer" />
-                  </div>
-                </div>
-              ),
-              data: { type: comp.component_type, isLeaf: true },
-              draggable: true,
-              droppable: false,
+  rawLessons.forEach((lesson) => {
+    if (lesson.type === 'learning_object') {
+      const lo = learningObjects.find((l) => l.id === lesson.id);
+      
+      if (lo) {
+
+        if (!lo.name && lesson.children && lesson.children.length > 0) {
+
+          lesson.children.forEach((child: any) => {
+            if (child.type === 'learning_object') {
+
+              const childLo = learningObjects.find((l: any) => 
+                l.topics?.some((topicGroup: any) => 
+                  topicGroup.id === child.id
+                )
+              );
+              
+              if (childLo) {
+                const processTopics = (topics: any[]): LessonItem[] => {
+                  if (!Array.isArray(topics)) return [];
+                  return topics.flatMap((topicGroup: any) => {
+                    if (topicGroup.topics && Array.isArray(topicGroup.topics)) {
+                      return topicGroup.topics.flatMap((topic: any) => {
+                        const activityList: any[] = Array.isArray(topic.activities) ? topic.activities : [];
+                        const activityCount = activityList.length;
+
+                        const activityItems: LessonItem[] = activityList.map((activity: any) => ({
+                          title: activity.name,
+                          description: activity.description,
+                          icon: getItemIcon(activity.type),
+                          count: '',
+                          type: activity.type,
+                          id: activity.id,
+                          completed: false
+                        }));
+
+                        const countText = activityCount > 0
+                          ? `(Activities: ${String(activityCount).padStart(2, '0')})`
+                          : '';
+
+                        const topicItem: LessonItem = {
+                          title: topic.name,
+                          description: topic.description,
+                          icon: getItemIcon('topic'),
+                          count: countText,
+                          type: 'topic',
+                          id: topic.id,
+                          completed: child.completed,
+                          children: activityItems
+                        };
+                        return [topicItem];
+                      });
+                    }
+                    return [];
+                  });
+                };
+
+                const topicItems = processTopics(childLo.topics || []);
+                
+
+                const learningObjectItem: LessonItem = {
+                  title: child.name || childLo.topics?.[0]?.name || 'Unnamed Learning Object',
+                  description: child.metadata?.description,
+                  icon: getItemIcon('learning_object'),
+                  count: `(Topics: ${String(topicItems.length).padStart(2, '0')})`,
+                  type: 'learning_object',
+                  id: child.id,
+                  completed: child.completed,
+                  children: topicItems
+                };
+                
+                lessons.push(learningObjectItem);
+              }
+            }
+          });
+        } else {
+      
+          const processTopics = (topics: any[]): LessonItem[] => {
+            if (!Array.isArray(topics)) return [];
+            return topics.flatMap((topicGroup: any) => {
+              if (topicGroup.topics && Array.isArray(topicGroup.topics)) {
+                return topicGroup.topics.flatMap((topic: any) => {
+                  const activityList: any[] = Array.isArray(topic.activities) ? topic.activities : [];
+                  const activityCount = activityList.length;
+
+                  const activityItems: LessonItem[] = activityList.map((activity: any) => ({
+                    title: activity.name,
+                    description: activity.description,
+                    icon: getItemIcon(activity.type),
+                    count: '',
+                    type: activity.type,
+                    id: activity.id,
+                    completed: false
+                  }));
+
+                  const countText = activityCount > 0
+                    ? `(Activities: ${String(activityCount).padStart(2, '0')})`
+                    : '';
+
+                  const topicItem: LessonItem = {
+                    title: topic.name,
+                    description: topic.description,
+                    icon: getItemIcon('topic'),
+                    count: countText,
+                    type: 'topic',
+                    id: topic.id,
+                    completed: lesson.completed,
+                    children: activityItems
+                  };
+                  return [topicItem];
+                });
+              }
+              return [];
             });
+          };
+
+          const topicItems = processTopics(lo.topics || []);
+          
+        
+          const learningObjectName = lo.name || lo.topics?.[0]?.name || 'Unnamed Learning Object';
+          
+          const learningObjectItem: LessonItem = {
+            title: learningObjectName,
+            description: lo.description,
+            icon: getItemIcon('learning_object'),
+            count: `(Topics: ${String(topicItems.length).padStart(2, '0')})`,
+            type: 'learning_object',
+            id: lo.id,
+            completed: lesson.completed,
+            children: topicItems
+          };
+          
+          lessons.push(learningObjectItem);
+        }
+      }
+      (lesson.children || []).forEach((child) => {
+        if (child.type === 'assessment' || child.type === 'exam') {
+          const totalQuestions = (child as any).total_questions ?? (child as any).question_count;
+          const weight = getDefaultWeightage(child.type as 'assessment' | 'exam', child);
+          lessons.push({
+            title: child.name,
+            description: child.description,
+            icon: getItemIcon(child.type),
+            count: (totalQuestions !== undefined || weight !== undefined)
+              ? `(Questions: ${totalQuestions ?? '-'}, Weightage: ${weight ?? '-'}%)`
+              : '',
+            type: child.type,
+            id: child.id,
+            completed: child.completed
           });
         }
-
-        if (comp.component_type === "assessment") {
-          (comp.assessments || []).forEach((ass, idx) => {
-            children.push({
-              key: `${comp.id}-ass-${idx}`,
-              label: (
-                <div className="flex align-items-center justify-content-between w-full">
-                  <span className="pl-3">{ass.name}</span>
-                  <div className="flex gap-3 pr-2">
-                    <i className="pi pi-book text-primary cursor-pointer" />
-                    <i className="pi pi-file text-primary cursor-pointer" />
-                    <i className="pi pi-list text-primary cursor-pointer" />
-                  </div>
-                </div>
-              ),
-              data: { type: comp.component_type, isLeaf: true },
-              draggable: true,
-              droppable: false,
-            });
-          });
-        }
-
-        return {
-          key: `${comp.id}`,
-          label: (
-            <div className={`flex align-items-center w-full ${isHeader ? 'font-bold text-900' : ''}`}>
-              <span>{label}</span>
-            </div>
-          ),
-          data: { type: comp.component_type, sort: comp.sort, isHeader: isHeader, isLeaf: false },
-          children: children.length > 0 ? children : undefined,
-          draggable: false,
-          droppable: true,
-        } as TreeNode;
       });
-    setNodes(newNodes);
-  }, [components]);
+    } else if (lesson.type === 'assessment' || lesson.type === 'exam') {
+      const totalQuestions = (lesson as any).total_questions ?? (lesson as any).question_count;
+      const weight = getDefaultWeightage(lesson.type as 'assessment' | 'exam', lesson);
+      lessons.push({
+        title: lesson.name,
+        description: lesson.description,
+        icon: getItemIcon(lesson.type),
+        count: (totalQuestions !== undefined || weight !== undefined)
+          ? `(Questions: ${totalQuestions ?? '-'}, Weightage: ${weight ?? '-'}%)`
+          : '',
+        type: lesson.type,
+        id: lesson.id,
+        completed: lesson.completed
+      });
+    }
+  });
 
-  const nameBodyTemplate = (node: any) => {
-    const label: string = node.data.name;
-    const isLeaf = node.data.isLeaf;
-    const isHeader = node.data.isHeader;
-    const nodeKey: string = node.key;
-    const hasChildren: boolean = !!node.children && node.children.length > 0;
-    const isExpanded: boolean = !!expandedKeys[nodeKey];
+  return lessons;
+};
 
-    const handleLeafClick = () => {
-      if (!isLeaf) return;
-        console.log(`Clicked: ${label}`, node.data);
-    };
-
-    const toggleExpand = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (!hasChildren) return;
-      setExpandedKeys((prev) => ({ ...prev, [nodeKey]: !prev[nodeKey] }));
-    };
-
-    return (
-      <div 
-        className={`${isLeaf ? 'cursor-pointer text-primary hover:underline' : 'cursor-pointer'} ${
-          isHeader ? 'font-bold text-900' : 'text-700'
-        } flex align-items-center`}
-        onClick={hasChildren ? toggleExpand : handleLeafClick}
-        style={{ paddingLeft: isLeaf ? '20px' : '0' }}
-      >
-        {hasChildren && (
-          <i
-            className={`mr-2 pi ${isExpanded ? 'pi-chevron-down' : 'pi-chevron-right'}`}
-            aria-hidden
-          />
-        )}
-        <span>{label}</span>
-      </div>
-    );
-  };
-
-  const activityBodyTemplate = (node: any) => {
-    const isLeaf = node.data.isLeaf;
-    if (!isLeaf) return null;
-
-    const onClick = (action: string) => {
-      console.log(`${action} clicked`, node.data);
-    };
-
-    return (
-      <div className="flex justify-content-end gap-3 pr-2">
-        <i className="pi pi-book text-primary cursor-pointer" title="Open" onClick={() => onClick('Open')} />
-        <i className="pi pi-file text-primary cursor-pointer" title="Notes" onClick={() => onClick('Notes')} />
-        <i className="pi pi-list text-primary cursor-pointer" title="Activity" onClick={() => onClick('Activity')} />
-      </div>
-    );
-  };
-
-  const renderRightPanelContent = () => {
-    switch (activeAccordionTab) {
-      case 0: // Course Index
+  const renderMainContent = () => {
+    switch (activeSection) {
+      case "course-index":
         return (
-          <Card title="Course Index" className="mb-4">
-            <Tree
-              value={nodes}
-              expandedKeys={expandedKeys}
-              onToggle={(e) => setExpandedKeys(e.value)}
-              dragdropScope="course-reorder"
-              onDragDrop={(e) => setNodes(e.value)}
-              className="w-full"
-            />
+          <Card title="Course Content" className="mb-4">
+            <div className="p-3">
+              <LessonTable 
+                data={buildLessonData()} 
+                onOpenDetails={openDetails}
+              />
+            </div>
           </Card>
         );
-      
-      case 1: // Course Information
+      case "info":
         return (
           <Card title="Course Information" className="mb-4">
             <div className="grid text-sm p-3">
               <div className="col-12 md:col-6 mb-3">
                 <div className="text-600 font-medium mb-1">Program/Grade</div>
-                <div className="text-900 font-semibold">{course?.program_of_study || "-"}</div>
+                <div className="text-900 font-semibold">
+                  {course?.name?.split("(")[0]?.trim() || "-"}
+                </div>
               </div>
               <div className="col-12 md:col-6 mb-3">
                 <div className="text-600 font-medium mb-1">Session</div>
-                <div className="text-900 font-semibold">{course?.session || "-"}</div>
+                <div className="text-900 font-semibold">
+                  {course?.name?.match(/\((.*?)\)/)?.[0] || "-"}
+                </div>
+              </div>
+              <div className="col-12 md:col-6 mb-3">
+                <div className="text-600 font-medium mb-1">Completion Rate</div>
+                <div className="text-900 font-semibold">{courseMetadata?.completion_rate !== undefined ? `${Math.round((courseMetadata.completion_rate || 0) * 100)}%` : '-'}</div>
+              </div>
+              <div className="col-12 md:col-6 mb-3">
+                <div className="text-600 font-medium mb-1">Average Score</div>
+                <div className="text-900 font-semibold">{courseMetadata?.average_score !== undefined ? `${courseMetadata.average_score}%` : '-'}</div>
               </div>
               <div className="col-12 mb-3">
                 <div className="text-600 font-medium mb-1">Course Status</div>
@@ -309,60 +467,48 @@ export default function CourseViewer({ course: initialCourse, courseId }: Course
                   </span>
                 </div>
               </div>
-              <div className="col-12">
-                <div className="text-600 font-medium mb-1">Description</div>
-                <div className="text-900 line-height-3">{course?.description || "No description available."}</div>
-              </div>
             </div>
           </Card>
         );
-      
-      case 2: // Grading Scheme
+      case "grading":
+        const gradingItems: Record<string, number> = {};
+        studentProgressData?.lessons?.forEach((lesson) => {
+          if ((lesson.type === "assessment" || lesson.type === "exam") && lesson.weightage) {
+            const key = lesson.name?.toLowerCase().includes("assessment") ? "Assessment" : lesson.name;
+
+            if (!gradingItems[key]) {
+              gradingItems[key] = 0;
+            }
+            gradingItems[key] += lesson.weightage ?? 0;
+          }
+
+          lesson.children?.forEach((child) => {
+            if ((child.type === "assessment" || child.type === "exam") && child.weightage) {
+              const key = child.name?.toLowerCase().includes("assessment") ? "Assessment" : child.name;
+
+              if (!gradingItems[key]) {
+                gradingItems[key] = 0;
+              }
+              gradingItems[key] += child.weightage ?? 0;
+            }
+          });
+        });
         return (
           <Card title="Grading Scheme" className="mb-4">
             <div className="p-3">
-              <div className="text-600 font-medium mb-3">Assessment Weightage Distribution:</div>
               <div className="grid">
-                <div className="col-12 md:col-6">
-                  <div className="surface-100 p-3 border-round mb-2">
-                    <div className="font-semibold">Assessment 1</div>
-                    <div className="text-primary font-bold">10%</div>
-                    <div className="text-sm text-600">Alphabet & Vocabulary Tests</div>
+                {Object.entries(gradingItems).map(([name, weight]) => (
+                  <div key={name} className="col-12 md:col-6">
+                    <div className="surface-100 p-3 border-round mb-2">
+                      <div className="font-semibold">{name}</div>
+                      <div className="text-primary font-bold">{weight ?? 0}%</div>
+                    </div>
                   </div>
-                </div>
-                <div className="col-12 md:col-6">
-                  <div className="surface-100 p-3 border-round mb-2">
-                    <div className="font-semibold">Assessment 2</div>
-                    <div className="text-primary font-bold">15%</div>
-                    <div className="text-sm text-600">Mid-term & Projects</div>
-                  </div>
-                </div>
-                <div className="col-12 md:col-6">
-                  <div className="surface-100 p-3 border-round mb-2">
-                    <div className="font-semibold">Final Examination</div>
-                    <div className="text-primary font-bold">50%</div>
-                    <div className="text-sm text-600">Comprehensive Test</div>
-                  </div>
-                </div>
-                <div className="col-12 md:col-6">
-                  <div className="surface-100 p-3 border-round mb-2">
-                    <div className="font-semibold">Participation</div>
-                    <div className="text-primary font-bold">15%</div>
-                    <div className="text-sm text-600">Class Activities</div>
-                  </div>
-                </div>
-                <div className="col-12 md:col-6">
-                  <div className="surface-100 p-3 border-round">
-                    <div className="font-semibold">Projects</div>
-                    <div className="text-primary font-bold">10%</div>
-                    <div className="text-sm text-600">Creative Assignments</div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </Card>
         );
-      
       default:
         return null;
     }
@@ -385,10 +531,10 @@ export default function CourseViewer({ course: initialCourse, courseId }: Course
         <div className="p-4 text-center">
           <i className="pi pi-exclamation-triangle text-4xl text-warning mb-3"></i>
           <div className="text-xl font-semibold">Course not found</div>
-          <Button 
-            label="Back to Courses" 
-            icon="pi pi-arrow-left" 
-            className="p-button-text mt-3" 
+          <Button
+            label="Back to Courses"
+            icon="pi pi-arrow-left"
+            className="p-button-text mt-3"
             onClick={() => router.push("/courses")}
           />
         </div>
@@ -398,28 +544,25 @@ export default function CourseViewer({ course: initialCourse, courseId }: Course
 
   return (
     <div className="layout-main p-4">
-      {/* Header Section */}
+      <Toast ref={toast} />
       <div className="flex justify-content-between align-items-center mb-4">
         <h1 className="m-0 text-3xl font-bold text-900">{course.name}</h1>
-        <Button 
-          icon="pi pi-arrow-left" 
-          label="Back" 
-          className="p-button-text" 
+        <Button
+          icon="pi pi-arrow-left"
+          label="Back"
+          className="p-button-text"
           onClick={() => router.push("/courses")}
         />
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid">
-        {/* Left Column - Course Avatar and Accordion */}
         <div className="col-12 lg:col-3">
-          {/* Course Avatar Card */}
           <Card className="mb-4">
             <div className="flex flex-column align-items-center text-center">
-              <Avatar 
-                icon="pi pi-book" 
-                size="xlarge" 
-                shape="circle" 
+              <Avatar
+                icon="pi pi-book"
+                size="xlarge"
+                shape="circle"
                 className="bg-primary mb-3"
                 style={{ fontSize: '2rem', width: '80px', height: '80px' }}
               />
@@ -428,44 +571,114 @@ export default function CourseViewer({ course: initialCourse, courseId }: Course
               <div className="text-500 text-sm">{course.session}</div>
             </div>
           </Card>
+          <div className="surface-card p-3 border-round shadow-2 mb-4">
+            <ul className="list-none p-0 m-0">
+              <li
+                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                  activeSection === "info" ? "bg-primary text-white" : "hover:surface-hover"
+                }`}
+                onClick={() => setActiveSection("info")}
+              >
+                <i className="pi pi-info-circle"></i>
+                <span>Course Information</span>
+              </li>
+              <li
+                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                  activeSection === "course-index" ? "bg-primary text-white" : "hover:surface-hover"
+                }`}
+                onClick={() => setActiveSection("course-index")}
+              >
+                <i className="pi pi-list"></i>
+                <span>Course Content</span>
+              </li>
 
-
-    {/* Sidebar Menu - Only Clickable Items */}
-<div className="surface-card p-3 border-round shadow-2 mb-4">
-  <ul className="list-none p-0 m-0">
-    <li 
-      className="p-3 cursor-pointer flex align-items-center gap-2 hover:surface-hover border-round" 
-      onClick={() => setActiveAccordionTab(0)}
-    >
-      <i className="pi pi-list"></i>
-      <span>Course Index</span>
-    </li>
-
-    <li 
-      className="p-3 cursor-pointer flex align-items-center gap-2 hover:surface-hover border-round" 
-      onClick={() => setActiveAccordionTab(1)}
-    >
-      <i className="pi pi-info-circle"></i>
-      <span>Course Information</span>
-    </li>
-
-    <li 
-      className="p-3 cursor-pointer flex align-items-center gap-2 hover:surface-hover border-round" 
-      onClick={() => setActiveAccordionTab(2)}
-    >
-      <i className="pi pi-percentage"></i>
-      <span>Grading Scheme</span>
-    </li>
-  </ul>
-</div>
-
+              <li
+                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                  activeSection === "grading" ? "bg-primary text-white" : "hover:surface-hover"
+                }`}
+                onClick={() => setActiveSection("grading")}
+              >
+                <i className="pi pi-percentage"></i>
+                <span>Grading Scheme</span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        {/* Right Column - Dynamic Content */}
         <div className="col-12 lg:col-9">
-          {renderRightPanelContent()}
+          {renderMainContent()}
         </div>
       </div>
+
+      <Dialog
+        header={selectedItem ? `Progress: ${selectedItem.name}` : "Progress"}
+        visible={progressDialogVisible}
+        style={{ width: "60vw" }}
+        modal
+        onHide={() => {
+          setProgressDialogVisible(false);
+          setSelectedStudentId("");
+          setStudentActivities([]);
+        }}
+      >
+        <div className="grid">
+          <div className="col-12 md:col-5">
+            <div className="text-600 mb-2">Select Student</div>
+            <div className="surface-100 border-round p-2" style={{ maxHeight: 350, overflow: 'auto' }}>
+              {students.map((s) => (
+                <div
+                  key={s.id}
+                  className={`p-2 border-round cursor-pointer flex align-items-center justify-content-between ${selectedStudentId === s.id ? 'surface-200' : ''}`}
+                  onClick={async () => {
+                    setSelectedStudentId(s.id);
+                    if (selectedItem) {
+                      try {
+                        const res = await api.get(`/student-progress/${s.id}/${selectedItem.id}`);
+                        const items = (res.data.data?.[0]?.activities || []) as Array<{ id: number; title: string; activity_type: string; progress: string; last_read: string | null }>;
+                        setStudentActivities(items);
+                      } catch (e) {
+                        console.error('Failed to fetch student progress', e);
+                        setStudentActivities([]);
+                      }
+                    }
+                  }}
+                >
+                  <span>{s.first_name} {s.last_name}</span>
+                  <i className="pi pi-angle-right text-600"></i>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="col-12 md:col-7">
+            <div className="text-600 mb-2">Activities</div>
+            <div className="surface-100 border-round p-3" style={{ minHeight: 350 }}>
+              {selectedStudentId && studentActivities.length === 0 && (
+                <div className="text-600">No activities found.</div>
+              )}
+              {studentActivities.map((a) => (
+                <div key={a.id} className="flex align-items-center justify-content-between py-2 border-bottom-1 surface-border">
+                  <div>
+                    <div className="font-medium">{a.title}</div>
+                    <div className="text-600 text-sm">{a.activity_type} • {a.last_read ? new Date(a.last_read).toLocaleString() : '—'}</div>
+                  </div>
+                  <div className="text-primary font-semibold">{a.progress}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Dialog>
+
+      <CourseDetailsSidebar
+        visible={detailsSidebarVisible}
+        onHide={() => setDetailsSidebarVisible(false)}
+        selectedDetails={selectedDetails}
+        detailsLoading={detailsLoading}
+        courseComponents={courseComponents}
+        getItemIcon={getItemIcon}
+        parseJsonArrayToString={parseJsonArrayToString}
+        onUpdate={handleRefreshData} 
+      />
     </div>
   );
 }

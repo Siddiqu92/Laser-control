@@ -84,6 +84,11 @@ export const ApiService = {
     return res.data.data;
   },
 
+  async getCourseById(courseId: string | number) {
+    const res = await api.get(`/items/course/${courseId}`);
+    return res.data.data;
+  },
+
   /**  Devices */
   async getDevices() {
     const res = await api.get(`/items/device`);
@@ -102,8 +107,11 @@ export const ApiService = {
     return res.data.data;
   },
 
-
-
+  /** Course Viewer */
+  async getCourseViewer(courseId: string | number): Promise<CourseViewerResponse> {
+    const res = await api.get(`/course-viewer/${courseId}`);
+    return res.data.data as CourseViewerResponse; 
+  },
 
   /**  Student Quiz/Assessment/Exam Detail */
   async getQuizDetail(
@@ -112,8 +120,176 @@ export const ApiService = {
     type: "practice" | "assessment" | "exam"
   ) {
     const res = await api.get(`/quiz-detail/${studentId}/${quizId}/${type}`);
-    return res.data?.data; // returns { questions, summary }
+    return res.data?.data; 
+  },
+
+  // ==================== COURSE EDIT APIs ====================
+  
+  /** Update Learning Object */
+  updateLearningObject(id: string | number, data: {
+    name?: string;
+    description?: string;
+    grade?: string;
+    subject?: string;
+    character_voice?: string;
+    learning_object_tags?: string;
+  }) {
+    return api.put(`/course-edit/learning-object/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Topic */
+  updateTopic(id: string | number, data: {
+    name?: string;
+    description?: string;
+    character_voice?: string;
+    message?: string;
+  }) {
+    return api.put(`/course-edit/topic/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Activity */
+  updateActivity(id: string | number, data: {
+    name?: string;
+    description?: string;
+    character_voice?: string;
+    message?: string;
+    file?: string;
+    url?: string;
+  }) {
+    return api.put(`/course-edit/activity/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Assessment */
+  updateAssessment(id: string | number, data: {
+    name?: string;
+    description?: string;
+    weight?: number;
+    time_limit?: number;
+    passing_score?: number;
+  }) {
+    return api.put(`/course-edit/assessment/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Exam */
+  updateExam(id: string | number, data: {
+    name?: string;
+    description?: string;
+    weight?: number;
+    time_limit?: number;
+    passing_score?: number;
+  }) {
+    return api.put(`/course-edit/exam/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Assessment Question */
+  updateAssessmentQuestion(id: string | number, data: {
+    statement?: string;
+  }) {
+    return api.put(`/course-edit/assessment-question/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Exam Question */
+  updateExamQuestion(id: string | number, data: {
+    statement?: string;
+  }) {
+    return api.put(`/course-edit/exam-question/${id}`, data).then(res => res.data);
+  },
+
+  /** Update Practice Question */
+  updatePracticeQuestion(id: string | number, data: {
+    statement?: string;
+  }) {
+    return api.put(`/course-edit/practice-question/${id}`, data).then(res => res.data);
+  },
+
+  /** Add New Questions */
+  addQuestions(type: 'assessment' | 'exam' | 'practice', parentId: string | number, questions: Array<{
+    statement: string;
+  }>) {
+    return api.post(`/course-edit/${type}/${parentId}/questions`, { questions }).then(res => res.data);
+  },
+
+  /** Delete Question */
+  deleteQuestion(type: 'assessment' | 'exam' | 'practice', id: string | number) {
+    return api.delete(`/course-edit/${type}/question/${id}`).then(res => res.data);
   },
 };
 
 export default api;
+
+// Types for Course Viewer API
+export interface CourseViewerResponse {
+  course: {
+    id: number;
+    name: string;
+    description?: string | null;
+    program_of_study?: string | null;
+    session?: string | null;
+    status?: string | null;
+  };
+  studentProgressData: {
+    lessons: Array<{
+      id: number;
+      name: string;
+      type: string;
+      sort?: number;
+      progress?: number;
+      completed?: boolean;
+      score?: number;
+      children?: Array<{
+        id: number;
+        name: string;
+        type: string;
+        sort?: number;
+        progress?: number;
+        score?: number;
+        question_count?: number;
+        weightage?: number;
+      }>;
+    }>;
+  };
+  courseComponents: {
+    learning_objects: Array<{
+      description: any;
+      grade: any;
+      subject: any;
+      character_voice: any;
+      learning_object_tags: any;
+      id: number;
+      name?: string;
+      topics?: Array<{
+        topics: any;
+        id: number;
+        name: string;
+        activities?: Array<{
+          id: number;
+          name: string;
+          type: string;
+        }>;
+      }>;
+    }>;
+    assessments: Array<any>;
+    exams: Array<any>;
+    activities: Array<any>;
+  };
+  courseMetadata?: {
+    created_date?: string;
+    last_modified?: string;
+    total_students?: number;
+    completion_rate?: number;
+    average_score?: number;
+  };
+  gradingScheme?: {
+    assessment_weight?: number;
+    mid_term_weight?: number;
+    final_exam_weight?: number;
+    grading_scale?: Record<string, number>;
+  };
+  schedule?: {
+    start_date?: string;
+    end_date?: string;
+    total_weeks?: number;
+    weekly_commitment?: string;
+  };
+  future_types?: Array<string>;
+}

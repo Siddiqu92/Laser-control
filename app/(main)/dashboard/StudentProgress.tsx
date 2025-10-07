@@ -235,16 +235,24 @@ const formatDate = (dateString: string | null): string => {
     const rawScore = rowData?.summary?.score;
     const hasRawScore = rawScore !== undefined && rawScore !== null;
     const score = hasRawScore ? Number(rawScore) : percent; 
+    const hasAnyInteraction = !!rowData.last_read || (!!rowData.progress && Number((rowData.progress || '').replace('%','')) > 0);
 
-
-if (score === 0) {
-  return (
-    <div className="flex items-center gap-2 w-[140px]">
-      <i className="pi pi-ban text-orange-500 text-lg"></i>
-      <span className="text-orange-500 font-medium">Not Attempted</span>
-    </div>
-  );
-}
+    if (score === 0) {
+      // For practice: 0% if attempted/skipped/incorrect but no correct; Not Started if truly no interaction
+      if (!hasAnyInteraction) {
+        return (
+          <div className="flex items-center gap-2 w-[140px]">
+            <i className="pi pi-minus-circle text-gray-400 text-lg"></i>
+            <span className="text-gray-500 font-medium">Not Started</span>
+          </div>
+        );
+      }
+      return (
+        <div className="flex items-center gap-2 w-[140px]">
+          <span className="text-green-600 font-medium">0%</span>
+        </div>
+      );
+    }
 
 
  
@@ -398,7 +406,7 @@ const renderActivityTitle = (rowData: Activity) => {
               />
             </DataTable>
           </>
-        )}
+        )} 
       </Dialog>
 
       <AssessmentResult
