@@ -37,13 +37,11 @@ export default function SchoolDashboard() {
     isAssessment,
     fetchStudentProgress,
   } = useStudentProgress(null);
-
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<StatusValue[]>([]);
   const [rows, setRows] = useState(25);
-
   const [filters, setFilters] = useState<any>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     name: {
@@ -51,14 +49,11 @@ export default function SchoolDashboard() {
       constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }],
     },
   });
-
   const [contentFilters, setContentFilters] = useState({
     learningObjects: true,
     assessments: true,
     exams: true,
   });
-
- 
   useEffect(() => {
     if (programs.length > 0 && !selectedGrade && !selectedSubject) {
       const firstProgram = programs[0];
@@ -74,18 +69,14 @@ export default function SchoolDashboard() {
       }
     }
   }, [programs, selectedGrade, selectedSubject, fetchDashboardData]);
-
- 
   useEffect(() => {
     setSelectedSubject(null);
     setSelectedCourseId(null);
   }, [selectedGrade]);
-
   const filterOptions = useMemo(() => {
     const grades = Array.from(new Set(programs.map((p) => p.name))).map(
       (name) => ({ label: name, value: name })
     );
-
     let subjects: { label: string; value: string; courseId: string }[] = [];
     if (selectedGrade) {
       const selectedProgram = programs.find((p) => p.name === selectedGrade);
@@ -99,25 +90,20 @@ export default function SchoolDashboard() {
           .filter((c: any) => Boolean(c.label));
       }
     }
-
     const statuses = selectedStatuses.map((status) => ({
       label: status.toLowerCase(),
       value: status.toLowerCase() as StatusValue,
     }));
-
     return { grades, subjects, statuses };
   }, [programs, selectedGrade, selectedStatuses]);
-
   const filteredStudents: Student[] = useMemo(() => {
     return getFilteredStudents(
       (dashboardData?.students || []) as Student[],
       selectedStatuses
     );
   }, [dashboardData?.students, selectedStatuses]);
-
   const sortedLessons: Lesson[] = useMemo(() => {
     if (!dashboardData?.lessons) return [];
-
     return [...dashboardData.lessons]
       .map((lesson) => ({ ...lesson, sort: lesson.sort ?? 0 }))
       .filter((lesson) => {
@@ -133,35 +119,29 @@ export default function SchoolDashboard() {
       })
       .sort((a, b) => a.sort - b.sort);
   }, [dashboardData?.lessons, contentFilters]);
-
   const currentPageStudents = useMemo(() => {
     return filteredStudents.slice(first, first + rows);
   }, [filteredStudents, first, rows]);
-
   const onPageChange = (event: any) => {
     setFirst(event.first);
     setRows(event.rows);
   };
-
   const openProgressFromCell = (payload: any) => {
     setProgressMeta(payload);
     fetchStudentProgress(payload.studentId, payload.lessonId, payload.lessonType);
   };
-
   const toggleContentFilter = (type: keyof typeof contentFilters) => {
     setContentFilters((prev) => ({
       ...prev,
       [type]: !prev[type],
     }));
   };
-
   if (loading || programsLoading)
     return (
       <div className="flex justify-content-center align-items-center min-h-screen">
         Loading data...
       </div>
     );
-
   return (
     <div className="grid">
       <div className="col-12">
@@ -188,31 +168,36 @@ export default function SchoolDashboard() {
               }}
             />
           </div>
-<div className="flex justify-content-between align-items-center mb-3">
+
+ <div className="flex justify-content-between align-items-center mb-3 flex-column md:flex-row gap-3">
   <Legend />
-  <div className="flex align-items-center gap-3">
-    <div className="flex gap-3">
-      {["learningObjects", "assessments", "exams"].map((filter) => (
-        <div key={filter} className="flex align-items-center">
-          <Checkbox
-            inputId={`${filter}Filter`}
-            checked={contentFilters[filter as keyof typeof contentFilters]}
-            onChange={() =>
-              toggleContentFilter(filter as keyof typeof contentFilters)
-            }
-          />
-          <label htmlFor={`${filter}Filter`} className="ml-2 text-sm">
-            {filter === "learningObjects"
-              ? "Lessons"
-              : filter.charAt(0).toUpperCase() + filter.slice(1)}
-          </label>
-        </div>
-      ))}
-    </div>
+  {/* Content Type Filters */}
+  <div className="flex flex-wrap justify-content-center gap-3">
+    {["learningObjects", "assessments", "exams"].map((filter) => (
+      <div key={filter} className="flex align-items-center">
+        <Checkbox
+          inputId={`${filter}Filter`}
+          checked={contentFilters[filter as keyof typeof contentFilters]}
+          onChange={() =>
+            toggleContentFilter(filter as keyof typeof contentFilters)
+          }
+          className="mr-2"
+        />
+        <label 
+          htmlFor={`${filter}Filter`} 
+          className="text-sm whitespace-nowrap"
+          style={{ fontSize: '0.875rem' }}
+        >
+          {filter === "learningObjects"
+            ? "Lessons"
+            : filter === "assessments"
+            ? "Assessments"
+            : "Exams"}
+        </label>
+      </div>
+    ))}
   </div>
 </div>
-
-
           <div className="mt-4">
             <StudentTable
               students={currentPageStudents}
@@ -223,7 +208,6 @@ export default function SchoolDashboard() {
               onOpenProgress={openProgressFromCell}
             />
           </div>
-
           {filteredStudents.length > 0 && (
             <Pagination
               first={first}
@@ -234,7 +218,6 @@ export default function SchoolDashboard() {
           )}
         </div>
       </div>
-
       {isAssessment ? (
         <AssessmentResult
           visible={progressVisible}

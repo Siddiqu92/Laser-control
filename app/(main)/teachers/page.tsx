@@ -22,7 +22,7 @@ export default function TeachersPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [showForm, setShowForm] = useState(false); 
 
-    // API call to fetch teachers
+
     const getTeachers = async () => {
         try {
             const res = await api.get(
@@ -57,10 +57,10 @@ export default function TeachersPage() {
         );
     };
 
-    // handle new teacher submission
+    
     const handleAddTeacher = async (teacher: any) => {
         try {
-            // call API to save teacher
+          
             await api.post("/users", {
                 first_name: teacher.first_name,
                 last_name: teacher.last_name,
@@ -68,7 +68,7 @@ export default function TeachersPage() {
                 subject: teacher.subject,
                 role: "teacher"
             });
-            getTeachers(); // refresh list
+            getTeachers(); 
         } catch (error) {
             console.error("Failed to add teacher:", error);
         }

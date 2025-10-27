@@ -37,7 +37,7 @@ export const Filters: React.FC<FiltersProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
 
-  // ✅ Sort grades: Kindergarten first, then Grade 1..N
+
   const sortedGrades = useMemo(() => {
     return [...filterOptions.grades].sort((a, b) => {
       if (a.label.toLowerCase().includes("kindergarten")) return -1;
@@ -53,7 +53,6 @@ export const Filters: React.FC<FiltersProps> = ({
     });
   }, [filterOptions.grades]);
 
-  // Auto-select first subject when grade is selected
   useEffect(() => {
     if (selectedGrade && filterOptions.subjects.length > 0 && !selectedSubject) {
       const firstSubject = filterOptions.subjects[0];

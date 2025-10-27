@@ -1,44 +1,268 @@
 "use client";
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Card } from "primereact/card";
 import { Button } from "primereact/button";
-import { Sidebar } from "primereact/sidebar";
 import { Avatar } from "primereact/avatar";
-import { useRouter } from "next/navigation";
+import { InputText } from "primereact/inputtext";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { useRef } from "react";
-import api, { ApiService, CourseViewerResponse } from "@/service/api";
+import api, { 
+  ApiService, 
+  CourseOverviewResponse, 
+  ComponentDetailResponse,
+  ActivityDetailResponse,
+  TopicDetailResponse 
+} from "@/service/api";
 import LessonTable, { LessonItem } from "./components/LessonTable";
 import CourseDetailsSidebar from "./components/CourseSidebar/CourseSidebar";
+import CourseInformation from "./courseinformation";
+import GradingScheme from "./GradingScheme";
 import { 
   CourseDetails, 
   ComponentType, 
   CourseViewerProps, 
-  StudentProgressData 
+  LessonData 
 } from "./types/courseTypes";
-
+import { 
+  LibraryBooks,
+  PlayLesson,
+  Quiz,
+  Category,
+  Grading,
+  Star,
+  LocalActivity,
+  Info,
+  List,
+  Percent,
+  ArrowBack,
+  Search,
+  Add,
+  Inbox,
+  Warning,
+} from '@mui/icons-material';
+const INITIAL_BATCH_SIZE = 20;
+const BATCH_SIZE = 20; 
 export default function CourseViewer({ course: initialCourse, courseId }: CourseViewerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useRef<Toast>(null);
   const [activeSection, setActiveSection] = useState<string>("info");
   const [course, setCourse] = useState<CourseDetails | null>(initialCourse ?? null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [studentProgressData, setStudentProgressData] = useState<StudentProgressData | null>(null);
-  const [students, setStudents] = useState<Array<{ id: string; first_name: string; last_name: string; avatar: string | null }>>([]);
-  const [progressDialogVisible, setProgressDialogVisible] = useState<boolean>(false);
-  const [selectedItem, setSelectedItem] = useState<{ id: number; name: string; type: ComponentType } | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
-  const [studentActivities, setStudentActivities] = useState<Array<{ id: number; title: string; activity_type: string; progress: string; last_read: string | null }>>([]);
-  const [courseComponents, setCourseComponents] = useState<CourseViewerResponse["courseComponents"] | null>(null);
-  const [courseMetadata, setCourseMetadata] = useState<CourseViewerResponse["courseMetadata"] | null>(null);
-  const [gradingScheme, setGradingScheme] = useState<CourseViewerResponse["gradingScheme"] | null>(null);
-  const [schedule, setSchedule] = useState<CourseViewerResponse["schedule"] | null>(null);
+  const [allLessons, setAllLessons] = useState<LessonData[]>([]);
+  const [visibleLessons, setVisibleLessons] = useState<LessonData[]>([]);
+  const [loadedCount, setLoadedCount] = useState<number>(0);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [courseDataLoading, setCourseDataLoading] = useState<boolean>(false);
+  const [courseComponents, setCourseComponents] = useState<any>(null);
+  const [courseMetadata, setCourseMetadata] = useState<any>(null);
+  const [gradingScheme, setGradingScheme] = useState<any>(null);
+  const [schedule, setSchedule] = useState<any>(null);
   const [detailsSidebarVisible, setDetailsSidebarVisible] = useState<boolean>(false);
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
   const [selectedDetails, setSelectedDetails] = useState<any>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [hasFetchedCourseData, setHasFetchedCourseData] = useState<boolean>(false);
+  const [hasEmptyLessons, setHasEmptyLessons] = useState<boolean>(false);
+  const [questionsCount, setQuestionsCount] = useState<{[key: number]: number}>({});
+  const fromPage = searchParams.get('fromPage');
+  const rows = searchParams.get('rows');
+  const search = searchParams.get('search');
+  
+  const resetCourseData = useCallback(() => {
+    setVisibleLessons([]);
+    setLoadedCount(0);
+    setAllLessons([]);
+    setSearchTerm("");
+    setHasFetchedCourseData(false);
+    setHasEmptyLessons(false);
+    setQuestionsCount({});
+  }, []);
+
+  const handleSectionChange = useCallback((section: string) => {
+    if (section === "course-index") {
+      resetCourseData();
+    }
+    setActiveSection(section);
+  }, [resetCourseData]);
+
+  const hasMore = useMemo(() => {
+    return loadedCount < allLessons.length;
+  }, [loadedCount, allLessons.length]);
+
+  const loadMoreLessons = useCallback(async () => {
+    if (!hasMore || isLoadingMore || hasEmptyLessons) return;
+    setIsLoadingMore(true);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const nextBatch = allLessons.slice(loadedCount, loadedCount + BATCH_SIZE);
+    setVisibleLessons(prev => [...prev, ...nextBatch]);
+    setLoadedCount(prev => prev + nextBatch.length);  
+    setIsLoadingMore(false);
+  }, [allLessons, loadedCount, hasMore, isLoadingMore, hasEmptyLessons]);
+
+  const fetchQuestionsCount = useCallback(async (lessons: LessonData[]) => {
+    const newQuestionsCount: {[key: number]: number} = {};
+    
+    const detailedDataPromises = lessons.map(async (lesson) => {
+      if (lesson.type === 'assessment' || lesson.type === 'exam') {
+        try {
+          const detailData = await ApiService.getComponentDetail(lesson.id);
+          return { lesson, detailData };
+        } catch (error) {
+          return null;
+        }
+      }
+      return null;
+    });
+
+    try {
+      const detailedResults = await Promise.all(detailedDataPromises);
+      
+      for (const result of detailedResults) {
+        if (!result) continue;
+        
+        const { lesson, detailData } = result;
+        
+        if (lesson.type === 'assessment') {
+          const assessmentId = detailData.component?.assessment?.id;
+          if (assessmentId) {
+            const count = await ApiService.getAssessmentQuestionCount(assessmentId);
+            newQuestionsCount[lesson.id] = count;
+          } else {
+            newQuestionsCount[lesson.id] = 0;
+          }
+        } 
+        else if (lesson.type === 'exam') {
+          const examId = detailData.component?.exam?.id;
+          if (examId) {
+            const count = await ApiService.getExamQuestionCount(examId);
+            newQuestionsCount[lesson.id] = count;
+          } else {
+            newQuestionsCount[lesson.id] = 0;
+          }
+        }
+      }
+      
+      for (const lesson of lessons) {
+        if (lesson.children) {
+          for (const child of lesson.children) {
+            if (child.type === 'assessment' || child.type === 'exam') {
+              try {
+                const detailData = await ApiService.getComponentDetail(child.id);
+                
+                if (child.type === 'assessment') {
+                  const assessmentId = detailData.component?.assessment?.id;
+                  if (assessmentId) {
+                    const count = await ApiService.getAssessmentQuestionCount(assessmentId);
+                    newQuestionsCount[child.id] = count;
+                  }
+                } 
+                else if (child.type === 'exam') {
+                  const examId = detailData.component?.exam?.id;
+                  if (examId) {
+                    const count = await ApiService.getExamQuestionCount(examId);
+                    newQuestionsCount[child.id] = count;
+                  }
+                }
+              } catch (error) {
+                newQuestionsCount[child.id] = 0;
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {}
+    
+    setQuestionsCount(prev => ({ ...prev, ...newQuestionsCount }));
+  }, []);
+
+  const fetchCourseData = useCallback(async () => {
+    if (!courseId || hasFetchedCourseData) return;
+    try {
+      setCourseDataLoading(true);
+      setHasFetchedCourseData(true);
+      const data = await ApiService.getCourseOverview(courseId);
+      const courseData: CourseDetails = data.course as CourseDetails;      
+      const lessonsData = (data.course.lessons || []).map((lesson: any) => ({
+        ...lesson,
+        children: lesson.children?.map((child: any) => ({
+          ...child,
+          weightage: child.weightage ?? false,
+        })),
+      }));
+      
+      if (!lessonsData || lessonsData.length === 0) {
+        setHasEmptyLessons(true);
+      } else {
+        setHasEmptyLessons(false);
+        fetchQuestionsCount(lessonsData);
+      }
+      setAllLessons(lessonsData);
+    } catch (err) {
+      console.error("Failed to load course overview data", err);
+      showToast('error', 'Error', 'Failed to load course data');
+      setHasFetchedCourseData(false);
+    } finally {
+      setCourseDataLoading(false);
+    }
+  }, [courseId, hasFetchedCourseData, fetchQuestionsCount]);
+
+  useEffect(() => {
+    if (allLessons.length > 0 && visibleLessons.length === 0) {
+      const initialBatch = allLessons.slice(0, Math.min(INITIAL_BATCH_SIZE, allLessons.length));
+      setVisibleLessons(initialBatch);
+      setLoadedCount(initialBatch.length);
+    }
+  }, [allLessons, visibleLessons.length]); 
+
+  useEffect(() => {
+    if (hasMore && !isLoadingMore && activeSection === "course-index" && !courseDataLoading && !hasEmptyLessons) {
+      const timer = setTimeout(() => {
+        loadMoreLessons();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [hasMore, isLoadingMore, activeSection, loadMoreLessons, courseDataLoading, hasEmptyLessons]);
+
+  useEffect(() => {
+    if (activeSection === "course-index" && 
+        allLessons.length === 0 && 
+        !courseDataLoading && 
+        !hasFetchedCourseData &&
+        !hasEmptyLessons) {
+      fetchCourseData();
+    }
+  }, [activeSection, allLessons.length, courseDataLoading, fetchCourseData, hasFetchedCourseData, hasEmptyLessons]);
+
+  useEffect(() => {
+    if (activeSection !== "course-index" || !hasMore || isLoadingMore || courseDataLoading || hasEmptyLessons) return;
+    const handleScroll = () => {
+      const scrollContainer = document.querySelector('.layout-main');
+      if (!scrollContainer) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const scrollPosition = scrollTop + clientHeight;
+      if (scrollHeight - scrollPosition <= 100) {
+        loadMoreLessons();
+      }
+    };
+    const scrollContainer = document.querySelector('.layout-main');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [activeSection, hasMore, isLoadingMore, loadMoreLessons, courseDataLoading, hasEmptyLessons]);
+
+  const handleBackClick = () => {
+    const params = new URLSearchParams();
+    if (fromPage) params.set('page', fromPage);
+    if (rows) params.set('rows', rows);
+    if (search) params.set('search', search);
+    const queryString = params.toString();
+    router.push(`/courses${queryString ? `?${queryString}` : ''}`);
+  };
 
   const showToast = (severity: 'success' | 'error', summary: string, detail: string) => {
     toast.current?.show({ severity, summary, detail, life: 3000 });
@@ -46,137 +270,382 @@ export default function CourseViewer({ course: initialCourse, courseId }: Course
 
   const handleRefreshData = () => {
     setRefreshTrigger(prev => prev + 1);
+    setHasFetchedCourseData(false);
+    setHasEmptyLessons(false);
+    setQuestionsCount({});
     showToast('success', 'Success', 'Data updated successfully');
   };
 
-const parseJsonArrayToString = (jsonString: string, type: "grade" | "subject" | "character_voice" | "learning_object_tags"): string => {
-  if (!jsonString || jsonString === 'null' || jsonString === '""') {
-    return "";
-  }
-  
-  try {
-    if (type === "character_voice" || type === "learning_object_tags") {
+  const parseJsonArrayToString = (jsonString: string, type: "grade" | "subject" | "character_voice" | "learning_object_tags"): string => {
+    if (!jsonString || jsonString === 'null' || jsonString === '""') {
+      return "";
+    }
+    try {
+      if (type === "character_voice" || type === "learning_object_tags") {
+        return jsonString;
+      }   
+      const array = JSON.parse(jsonString);
+      if (Array.isArray(array) && array.length > 0) {
+        const item = array[0];
+        if (type === "grade") {
+          return item.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+        } else {
+          return item.charAt(0).toUpperCase() + item.slice(1);
+        }
+      }
+      return "";
+    } catch (error) {
+      console.error(`Error parsing ${type}:`, error);
       return jsonString;
     }
-    
-    const array = JSON.parse(jsonString);
-    if (Array.isArray(array) && array.length > 0) {
-      const item = array[0];
-      if (type === "grade") {
-        return item.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-      } else {
-        return item.charAt(0).toUpperCase() + item.slice(1);
-      }
-    }
-    return "";
-  } catch (error) {
-    console.error(`Error parsing ${type}:`, error);
-    return jsonString;
-  }
-};
+  };
 
-const openDetails = async (payload: any) => {
-  try {
-    setDetailsLoading(true);
-    
-    if (payload.type === 'learning_object') {
-      let learningObjectData = null;
-      
-      console.log("Searching for learning object with ID:", payload.id);
-      console.log("Student Progress Lessons:", studentProgressData?.lessons);
-      
-      if (studentProgressData?.lessons) {
-        for (const lesson of studentProgressData.lessons) {
-          if (lesson.children) {
-            for (const child of lesson.children) {
-              console.log("Checking child:", child);
-              if (child.id === payload.id && child.type === 'learning_object') {
-                learningObjectData = child;
-                console.log("Found learning object data:", learningObjectData);
-                break;
-              }
-            }
+  const openDetails = async (payload: any) => {
+    try {
+      setDetailsLoading(true);
+      const type = (payload?.type || '').toLowerCase();
+      let detailData: any = null;
+      switch (type) {
+        case 'learning_object':
+        case 'assessment':
+        case 'exam':
+          detailData = await ApiService.getComponentDetail(payload.id);
+          break;
+        case 'activity':
+        case 'video':
+        case 'practice_questions':
+        case 'h5p':
+          detailData = await ApiService.getActivityDetail(payload.id);
+          break;
+        case 'topic':
+          detailData = await ApiService.getTopicDetail(payload.id);
+          break;
+        default:
+          console.warn('Unknown type for detail:', type);
+          setSelectedDetails(payload);
+          setDetailsSidebarVisible(true);
+          return;
+      }
+      if (detailData) {
+        let transformedData = null;
+        if (type === 'learning_object' || type === 'assessment' || type === 'exam') {
+          transformedData = {
+            ...payload,
+            component: detailData.component
+          };
+          if (detailData.component.learning_objects) {
+            setCourseComponents({
+              learning_objects: detailData.component.learning_objects,
+              assessments: detailData.component.assessment ? [detailData.component.assessment] : [],
+              exams: detailData.component.exam ? [detailData.component.exam] : []
+            });
           }
-          if (learningObjectData) break;
+        } 
+        else if (type === 'activity' || type === 'video' || type === 'practice_questions' || type === 'h5p') {
+          transformedData = {
+            ...payload,
+            activity: detailData.activity
+          };
         }
-      }
-      
-      if (!learningObjectData || !learningObjectData.metadata) {
-        console.log("Metadata not found in child, searching in courseComponents");
-        learningObjectData = findLearningObjectById(payload.id);
-      }
-      
-      if (learningObjectData) {
-        console.log("Final learning object data:", learningObjectData);
-        
-        const detailsData = {
-          ...payload,
-          id: learningObjectData.id,
-          name: learningObjectData.name || payload.name,
-          description: learningObjectData.description || payload.description,
-         
-          grade: learningObjectData.metadata?.grade || learningObjectData.grade,
-          subject: learningObjectData.metadata?.subject || learningObjectData.subject,
-          character_voice: learningObjectData.metadata?.character_voice || learningObjectData.character_voice,
-          learning_object_tags: learningObjectData.metadata?.learning_object_tags || learningObjectData.learning_object_tags,
-        };
-        
-        setSelectedDetails(detailsData);
+        else if (type === 'topic') {
+          transformedData = {
+            ...payload,
+            topic: detailData.topic
+          };
+        }
+        setSelectedDetails(transformedData || payload);
       } else {
-        console.log("No learning object data found, using payload:", payload);
         setSelectedDetails(payload);
       }
-    } else {
+      setDetailsSidebarVisible(true);
+    } catch (error) {
+      console.error("Failed to load details", error);
+      showToast('error', 'Error', 'Failed to load details');
       setSelectedDetails(payload);
+    } finally {
+      setDetailsLoading(false);
     }
-    
-    setDetailsSidebarVisible(true);
-  } catch (_e) {
-    console.error("Failed to load learning object details", _e);
-    setSelectedDetails(payload); 
-  } finally {
-    setDetailsLoading(false);
-  }
-};
+  };
 
-const findLearningObjectById = (id: number) => {
-  if (!courseComponents?.learning_objects) return null;
-  
-  console.log("Searching in courseComponents for ID:", id);
-  
-  
-  for (const lo of courseComponents.learning_objects) {
-    if (lo.id === id) {
-      console.log("Found direct learning object:", lo);
-      return lo;
+  const getItemIcon = (type: ComponentType | string): JSX.Element => {
+    const lowerType = typeof type === 'string' ? type.toLowerCase() : '';
+    if (lowerType.includes('video')) {
+      return <PlayLesson />;
     }
-  }
+    if (lowerType.includes('practice')) {
+      return <Quiz />;
+    }
+    if (lowerType.includes('learning_object')) {
+      return <LibraryBooks />;
+    }
+    if (lowerType.includes('topic')) {
+      return <Category />;
+    }
+    if (lowerType.includes('assessment')) {
+      return <Grading />;
+    }
+    if (lowerType.includes('exam')) {
+      return <Star />;
+    }
+    if (lowerType.includes('activity')) {
+      return <Grading />;
+    }
+    if (lowerType.includes('interactive')) {
+      return <LocalActivity />;
+    }
+    if (lowerType.includes('h5p')) {
+      return <LocalActivity />;
+    }
+    if (lowerType.includes('lesson')) {
+      return <LibraryBooks />;
+    }
+    return <LibraryBooks />;
+  };
 
-  
-  for (const lo of courseComponents.learning_objects) {
-    if (lo.topics && Array.isArray(lo.topics)) {
-      for (const topicGroup of lo.topics) {
+  const buildLessonData = (): LessonItem[] => {
+    const lessonItems: LessonItem[] = [];
+    const rawLessons = visibleLessons || [];
+    const processedIds = new Set<number>();   
     
-        if (topicGroup && topicGroup.id === id) {
-          console.log("Found topic group:", topicGroup);
-          return topicGroup;
-        }
+    const getDefaultWeightage = (kind: 'assessment' | 'exam', item?: any): number | undefined => {
+      if (!gradingScheme) return item?.weightage;
+      if (kind === 'assessment') return item?.weightage ?? gradingScheme.assessment_weight;
+      const name: string = (item?.name || '').toLowerCase();
+      if (name.includes('mid') || name.includes('mid-term') || name.includes('mid term')) {
+        return item?.weightage ?? gradingScheme.mid_term_weight;
+      }
+      return item?.weightage ?? gradingScheme.final_exam_weight;
+    };
+
+    const getTotalQuestions = (item: any): number => {
+      const storedCount = questionsCount[item.id];
+      if (storedCount !== undefined) {
+        return storedCount;
+      }
+      if (item?.total_questions !== undefined) return item.total_questions;
+      if (item?.question_count !== undefined) return item.question_count;
+      return 0;
+    };
+
+    rawLessons.forEach((lesson) => {
+      if (processedIds.has(lesson.id)) {
+        return;
+      }
+      processedIds.add(lesson.id);
+      
+      if (lesson.type === 'learning_object') {
+        const totalTopicsCount = (lesson as any).total_topics_count || 0;
+        const hasChildren = totalTopicsCount > 0;      
         
-        if (topicGroup && typeof topicGroup === 'object' && 'topics' in topicGroup && Array.isArray(topicGroup.topics)) {
-          for (const topic of topicGroup.topics) {
-            if (topic && topic.id === id) {
-              console.log("Found topic:", topic);
-              return topic;
+        lessonItems.push({
+          title: lesson.name || 'Unnamed Learning Object',
+          description: lesson.description,
+          icon: getItemIcon('learning_object'),
+          count: `(Topics: ${String(totalTopicsCount).padStart(2, '0')})`,
+          type: 'learning_object',
+          id: lesson.id,
+          children: hasChildren ? [] : undefined,
+          childrenLoaded: false
+        });
+
+        (lesson.children || []).forEach((child) => {
+          if (!processedIds.has(child.id)) {
+            processedIds.add(child.id);
+            
+            if (child.type === 'assessment' || child.type === 'exam') {
+              const totalQuestions = getTotalQuestions(child);
+              const weight = getDefaultWeightage(child.type as 'assessment' | 'exam', child);
+              
+              lessonItems.push({
+                title: child.name,
+                description: child.description,
+                icon: getItemIcon(child.type),
+                count: `(Questions: ${String(totalQuestions).padStart(2, '0')}, Weightage: ${weight ?? '0'}%)`,
+                type: child.type,
+                id: child.id,
+              });
             }
+          }
+        });
+        
+      } else if (lesson.type === 'assessment' || lesson.type === 'exam') {
+        const totalQuestions = getTotalQuestions(lesson);
+        const weight = getDefaultWeightage(lesson.type as 'assessment' | 'exam', lesson);
+        
+        lessonItems.push({
+          title: lesson.name,
+          description: lesson.description,
+          icon: getItemIcon(lesson.type),
+          count: `(Questions: ${String(totalQuestions).padStart(2, '0')}, Weightage: ${weight ?? '0'}%)`,
+          type: lesson.type,
+          id: lesson.id,
+        });
+      }
+    });
+    
+    return lessonItems;
+  };
+
+  const loadChildrenOnDemand = async (parentId: number, parentType: string): Promise<LessonItem[]> => {
+    try {
+      if (parentType === 'learning_object') {
+        const componentDetail = await ApiService.getComponentDetail(parentId);       
+        if (componentDetail.component.learning_objects) {
+          const learningObject = componentDetail.component.learning_objects[0];
+          if (learningObject?.topics) {
+            return learningObject.topics.map((topic: any) => ({
+              title: topic.name,
+              description: topic.description,
+              icon: getItemIcon('topic'),
+              count: `(Activities: ${String(topic.activities?.length || 0).padStart(2, '0')})`,
+              type: 'topic',
+              id: topic.id,
+              children: topic.activities?.map((activity: any) => ({
+                title: activity.name,
+                description: activity.description,
+                icon: getItemIcon(activity.type),
+                count: '',
+                type: activity.type,
+                id: activity.id,
+              })) || []
+            }));
           }
         }
       }
+      return [];
+    } catch (error) {
+      console.error('Failed to load children:', error);
+      showToast('error', 'Error', 'Failed to load content');
+      return [];
     }
-  }
-  
-  console.log("Learning object not found with ID:", id);
-  return null;
-};
+  };
+
+  const filterLessonsBySearch = (lessons: LessonItem[]): LessonItem[] => {
+    if (!searchTerm.trim()) return lessons;
+    const filterRecursive = (items: LessonItem[]): LessonItem[] => {
+      return items.filter(item => {
+        const matches = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+        if (item.children) {
+          const filteredChildren = filterRecursive(item.children);
+          if (filteredChildren.length > 0) {
+            return {
+              ...item,
+              children: filteredChildren
+            };
+          }
+        }
+        return matches;
+      });
+    };
+    return filterRecursive(lessons);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const renderCourseIndexContent = () => {
+    if (courseDataLoading) {
+      return (
+        <Card className="mb-4">
+          <div className="p-3">
+            <div className="flex justify-content-center align-items-center" style={{ height: '200px' }}>
+              <div className="text-center">
+                <i className="pi pi-spin pi-spinner text-4xl text-primary mb-3"></i>
+                <div>Loading course data...</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+    if (hasEmptyLessons || allLessons.length === 0) {
+      return (
+        <Card className="mb-4">
+          <div className="p-3">
+            <div className="flex justify-content-center align-items-center" style={{ height: '200px' }}>
+              <div className="text-center">
+                <Inbox className="text-4xl text-400 mb-3" />
+                <div className="text-600">No lessons available for this course</div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+    const lessons = buildLessonData();
+    const filteredLessons = filterLessonsBySearch(lessons);
+
+    return (
+      <Card className="mb-4">
+        <div className="p-3">
+          <div className="flex flex-column lg:flex-row gap-3 align-items-start lg:align-items-center justify-content-between mb-4">
+            <div className="flex align-items-center gap-3 w-full lg:w-auto">
+              <h3 className="m-0 text-900 font-semibold">Lessons</h3>
+            </div>
+            
+            <div className="flex flex-column lg:flex-row gap-3 w-full lg:w-auto">
+              <div className="w-full lg:w-auto" style={{ minWidth: '250px' }}>
+                <span className="p-input-icon-left w-full">
+                  <Search />
+                  <InputText 
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Search lessons..." 
+                    className="w-full"
+                  />
+                </span>
+              </div>
+              <Button 
+                label=" Add New Lesson" 
+                icon={<Add />}
+                className="p-button-primary w-full lg:w-auto"
+                style={{ whiteSpace: 'nowrap' }}
+              />
+            </div>
+          </div>
+          <LessonTable 
+            data={filteredLessons}
+            onOpenDetails={openDetails}
+            searchTerm={searchTerm}
+            onLoadChildren={loadChildrenOnDemand}
+          />
+          {hasMore && (
+            <div className="flex justify-content-center mt-4">
+              <div className="text-600">
+                <i className="pi pi-spin pi-spinner mr-2"></i>
+                Loading more lessons... ({loadedCount} of {allLessons.length} loaded)
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
+  const renderMainContent = () => {
+    switch (activeSection) {
+      case "course-index":
+        return renderCourseIndexContent();
+      case "info":
+        return (
+          <CourseInformation 
+            course={course}
+            courseMetadata={courseMetadata}
+          />
+        );
+      case "grading":
+        return (
+          <GradingScheme 
+            lessons={allLessons}
+            courseId={courseId} 
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   useEffect(() => {
     const idFromQuery = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('courseId') : null) || courseId || "";
@@ -187,332 +656,32 @@ const findLearningObjectById = (id: number) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await ApiService.getCourseViewer(idFromQuery);
-        const courseData: CourseDetails = data.course as CourseDetails;
+        const data = await ApiService.getCourseOverview(idFromQuery);
+        const courseData: CourseDetails = data.course as CourseDetails;      
         setCourse(courseData);
-        const dashboard = data.studentProgressData as unknown as StudentProgressData;
-        setStudentProgressData(dashboard);
-        setStudents(dashboard?.students || []);
-        setCourseComponents(data.courseComponents);
-        setCourseMetadata(data.courseMetadata || null);
-        setGradingScheme(data.gradingScheme || null);
-        setSchedule(data.schedule || null);
+        setGradingScheme(data.course.grading_scheme || null);
+        const lessonsData = (data.course.lessons || []).map((lesson: any) => ({
+          ...lesson,
+          children: lesson.children?.map((child: any) => ({
+            ...child,
+            weightage: child.weightage ?? false,
+          })),
+        }));
+        if (!lessonsData || lessonsData.length === 0) {
+          setHasEmptyLessons(true);
+        } else {
+          fetchQuestionsCount(lessonsData);
+        }
+        setAllLessons(lessonsData);
       } catch (err) {
-        console.error("Failed to load course viewer data", err);
+        console.error("Failed to load course overview data", err);
         showToast('error', 'Error', 'Failed to load course data');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [courseId, refreshTrigger]);
-
-  const getItemIcon = (type: ComponentType | string) => {
-    const lowerType = (type || '').toLowerCase();
-    
-    if (lowerType.includes('video')) {
-      return 'pi pi-video';
-    }
-    if (lowerType.includes('practice')) {
-      return 'pi pi-bolt';
-    }
-    if (lowerType.includes('learning_object')) {
-      return 'pi pi-book';
-    }
-    if (lowerType.includes('topic')) {
-      return 'pi pi-book';
-    }
-    if (lowerType.includes('assessment')) {
-      return 'pi pi-bolt';
-    }
-    if (lowerType.includes('exam')) {
-      return 'pi pi-star';
-    }
-    if (lowerType.includes('activity')) {
-      return 'pi pi-circle';
-    }
-    
-    return 'pi pi-book';
-  };
-
-const buildLessonData = (): LessonItem[] => {
-  const lessons: LessonItem[] = [];
-  const rawLessons = studentProgressData?.lessons || [];
-  const learningObjects = (courseComponents?.learning_objects || []) as any[];
-  
-  const getDefaultWeightage = (kind: 'assessment' | 'exam', item?: any): number | undefined => {
-    if (!gradingScheme) return item?.weightage;
-    if (kind === 'assessment') return item?.weightage ?? gradingScheme.assessment_weight;
-    const name: string = (item?.name || '').toLowerCase();
-    if (name.includes('mid') || name.includes('mid-term') || name.includes('mid term')) {
-      return item?.weightage ?? gradingScheme.mid_term_weight;
-    }
-    return item?.weightage ?? gradingScheme.final_exam_weight;
-  };
-
-  rawLessons.forEach((lesson) => {
-    if (lesson.type === 'learning_object') {
-      const lo = learningObjects.find((l) => l.id === lesson.id);
-      
-      if (lo) {
-
-        if (!lo.name && lesson.children && lesson.children.length > 0) {
-
-          lesson.children.forEach((child: any) => {
-            if (child.type === 'learning_object') {
-
-              const childLo = learningObjects.find((l: any) => 
-                l.topics?.some((topicGroup: any) => 
-                  topicGroup.id === child.id
-                )
-              );
-              
-              if (childLo) {
-                const processTopics = (topics: any[]): LessonItem[] => {
-                  if (!Array.isArray(topics)) return [];
-                  return topics.flatMap((topicGroup: any) => {
-                    if (topicGroup.topics && Array.isArray(topicGroup.topics)) {
-                      return topicGroup.topics.flatMap((topic: any) => {
-                        const activityList: any[] = Array.isArray(topic.activities) ? topic.activities : [];
-                        const activityCount = activityList.length;
-
-                        const activityItems: LessonItem[] = activityList.map((activity: any) => ({
-                          title: activity.name,
-                          description: activity.description,
-                          icon: getItemIcon(activity.type),
-                          count: '',
-                          type: activity.type,
-                          id: activity.id,
-                          completed: false
-                        }));
-
-                        const countText = activityCount > 0
-                          ? `(Activities: ${String(activityCount).padStart(2, '0')})`
-                          : '';
-
-                        const topicItem: LessonItem = {
-                          title: topic.name,
-                          description: topic.description,
-                          icon: getItemIcon('topic'),
-                          count: countText,
-                          type: 'topic',
-                          id: topic.id,
-                          completed: child.completed,
-                          children: activityItems
-                        };
-                        return [topicItem];
-                      });
-                    }
-                    return [];
-                  });
-                };
-
-                const topicItems = processTopics(childLo.topics || []);
-                
-
-                const learningObjectItem: LessonItem = {
-                  title: child.name || childLo.topics?.[0]?.name || 'Unnamed Learning Object',
-                  description: child.metadata?.description,
-                  icon: getItemIcon('learning_object'),
-                  count: `(Topics: ${String(topicItems.length).padStart(2, '0')})`,
-                  type: 'learning_object',
-                  id: child.id,
-                  completed: child.completed,
-                  children: topicItems
-                };
-                
-                lessons.push(learningObjectItem);
-              }
-            }
-          });
-        } else {
-      
-          const processTopics = (topics: any[]): LessonItem[] => {
-            if (!Array.isArray(topics)) return [];
-            return topics.flatMap((topicGroup: any) => {
-              if (topicGroup.topics && Array.isArray(topicGroup.topics)) {
-                return topicGroup.topics.flatMap((topic: any) => {
-                  const activityList: any[] = Array.isArray(topic.activities) ? topic.activities : [];
-                  const activityCount = activityList.length;
-
-                  const activityItems: LessonItem[] = activityList.map((activity: any) => ({
-                    title: activity.name,
-                    description: activity.description,
-                    icon: getItemIcon(activity.type),
-                    count: '',
-                    type: activity.type,
-                    id: activity.id,
-                    completed: false
-                  }));
-
-                  const countText = activityCount > 0
-                    ? `(Activities: ${String(activityCount).padStart(2, '0')})`
-                    : '';
-
-                  const topicItem: LessonItem = {
-                    title: topic.name,
-                    description: topic.description,
-                    icon: getItemIcon('topic'),
-                    count: countText,
-                    type: 'topic',
-                    id: topic.id,
-                    completed: lesson.completed,
-                    children: activityItems
-                  };
-                  return [topicItem];
-                });
-              }
-              return [];
-            });
-          };
-
-          const topicItems = processTopics(lo.topics || []);
-          
-        
-          const learningObjectName = lo.name || lo.topics?.[0]?.name || 'Unnamed Learning Object';
-          
-          const learningObjectItem: LessonItem = {
-            title: learningObjectName,
-            description: lo.description,
-            icon: getItemIcon('learning_object'),
-            count: `(Topics: ${String(topicItems.length).padStart(2, '0')})`,
-            type: 'learning_object',
-            id: lo.id,
-            completed: lesson.completed,
-            children: topicItems
-          };
-          
-          lessons.push(learningObjectItem);
-        }
-      }
-      (lesson.children || []).forEach((child) => {
-        if (child.type === 'assessment' || child.type === 'exam') {
-          const totalQuestions = (child as any).total_questions ?? (child as any).question_count;
-          const weight = getDefaultWeightage(child.type as 'assessment' | 'exam', child);
-          lessons.push({
-            title: child.name,
-            description: child.description,
-            icon: getItemIcon(child.type),
-            count: (totalQuestions !== undefined || weight !== undefined)
-              ? `(Questions: ${totalQuestions ?? '-'}, Weightage: ${weight ?? '-'}%)`
-              : '',
-            type: child.type,
-            id: child.id,
-            completed: child.completed
-          });
-        }
-      });
-    } else if (lesson.type === 'assessment' || lesson.type === 'exam') {
-      const totalQuestions = (lesson as any).total_questions ?? (lesson as any).question_count;
-      const weight = getDefaultWeightage(lesson.type as 'assessment' | 'exam', lesson);
-      lessons.push({
-        title: lesson.name,
-        description: lesson.description,
-        icon: getItemIcon(lesson.type),
-        count: (totalQuestions !== undefined || weight !== undefined)
-          ? `(Questions: ${totalQuestions ?? '-'}, Weightage: ${weight ?? '-'}%)`
-          : '',
-        type: lesson.type,
-        id: lesson.id,
-        completed: lesson.completed
-      });
-    }
-  });
-
-  return lessons;
-};
-
-  const renderMainContent = () => {
-    switch (activeSection) {
-      case "course-index":
-        return (
-          <Card title="Course Content" className="mb-4">
-            <div className="p-3">
-              <LessonTable 
-                data={buildLessonData()} 
-                onOpenDetails={openDetails}
-              />
-            </div>
-          </Card>
-        );
-      case "info":
-        return (
-          <Card title="Course Information" className="mb-4">
-            <div className="grid text-sm p-3">
-              <div className="col-12 md:col-6 mb-3">
-                <div className="text-600 font-medium mb-1">Program/Grade</div>
-                <div className="text-900 font-semibold">
-                  {course?.name?.split("(")[0]?.trim() || "-"}
-                </div>
-              </div>
-              <div className="col-12 md:col-6 mb-3">
-                <div className="text-600 font-medium mb-1">Session</div>
-                <div className="text-900 font-semibold">
-                  {course?.name?.match(/\((.*?)\)/)?.[0] || "-"}
-                </div>
-              </div>
-              <div className="col-12 md:col-6 mb-3">
-                <div className="text-600 font-medium mb-1">Completion Rate</div>
-                <div className="text-900 font-semibold">{courseMetadata?.completion_rate !== undefined ? `${Math.round((courseMetadata.completion_rate || 0) * 100)}%` : '-'}</div>
-              </div>
-              <div className="col-12 md:col-6 mb-3">
-                <div className="text-600 font-medium mb-1">Average Score</div>
-                <div className="text-900 font-semibold">{courseMetadata?.average_score !== undefined ? `${courseMetadata.average_score}%` : '-'}</div>
-              </div>
-              <div className="col-12 mb-3">
-                <div className="text-600 font-medium mb-1">Course Status</div>
-                <div className="text-900 font-semibold">
-                  <span className={`p-tag p-tag-${course?.status === 'execute' ? 'success' : 'warning'}`}>
-                    {course?.status || "Unknown"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        );
-      case "grading":
-        const gradingItems: Record<string, number> = {};
-        studentProgressData?.lessons?.forEach((lesson) => {
-          if ((lesson.type === "assessment" || lesson.type === "exam") && lesson.weightage) {
-            const key = lesson.name?.toLowerCase().includes("assessment") ? "Assessment" : lesson.name;
-
-            if (!gradingItems[key]) {
-              gradingItems[key] = 0;
-            }
-            gradingItems[key] += lesson.weightage ?? 0;
-          }
-
-          lesson.children?.forEach((child) => {
-            if ((child.type === "assessment" || child.type === "exam") && child.weightage) {
-              const key = child.name?.toLowerCase().includes("assessment") ? "Assessment" : child.name;
-
-              if (!gradingItems[key]) {
-                gradingItems[key] = 0;
-              }
-              gradingItems[key] += child.weightage ?? 0;
-            }
-          });
-        });
-        return (
-          <Card title="Grading Scheme" className="mb-4">
-            <div className="p-3">
-              <div className="grid">
-                {Object.entries(gradingItems).map(([name, weight]) => (
-                  <div key={name} className="col-12 md:col-6">
-                    <div className="surface-100 p-3 border-round mb-2">
-                      <div className="font-semibold">{name}</div>
-                      <div className="text-primary font-bold">{weight ?? 0}%</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        );
-      default:
-        return null;
-    }
-  };
+  }, [courseId, refreshTrigger, fetchQuestionsCount]);
 
   if (loading) {
     return (
@@ -529,11 +698,11 @@ const buildLessonData = (): LessonItem[] => {
     return (
       <div className="layout-main p-4">
         <div className="p-4 text-center">
-          <i className="pi pi-exclamation-triangle text-4xl text-warning mb-3"></i>
+          <Warning className="text-4xl text-warning mb-3" />
           <div className="text-xl font-semibold">Course not found</div>
           <Button
             label="Back to Courses"
-            icon="pi pi-arrow-left"
+            icon={<ArrowBack />}
             className="p-button-text mt-3"
             onClick={() => router.push("/courses")}
           />
@@ -548,133 +717,72 @@ const buildLessonData = (): LessonItem[] => {
       <div className="flex justify-content-between align-items-center mb-4">
         <h1 className="m-0 text-3xl font-bold text-900">{course.name}</h1>
         <Button
-          icon="pi pi-arrow-left"
+          icon={<ArrowBack />}
           label="Back"
           className="p-button-text"
-          onClick={() => router.push("/courses")}
+          onClick={handleBackClick} 
         />
       </div>
-
       <div className="grid">
-        <div className="col-12 lg:col-3">
+        <div className="col-12 lg:col-2">
           <Card className="mb-4">
             <div className="flex flex-column align-items-center text-center">
               <Avatar
-                icon="pi pi-book"
                 size="xlarge"
                 shape="circle"
-                className="bg-primary mb-3"
-                style={{ fontSize: '2rem', width: '80px', height: '80px' }}
-              />
-              <div className="text-xl font-bold text-900">{course.name}</div>
+                className="bg-primary mb-3 flex align-items-center justify-content-center"
+                style={{ width: '80px', height: '80px' }}
+              >
+                <LibraryBooks sx={{ fontSize: 40, color: '#fff' }} />
+              </Avatar>
+              <div className="text-md font-bold text-900">{course.name}</div>
               <div className="text-600 text-sm mt-1">{course.program_of_study}</div>
               <div className="text-500 text-sm">{course.session}</div>
             </div>
+            <hr></hr>
+            <div className="surface-card mb-4">
+              <ul className="list-none p-0 m-0">
+                <li
+                  className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                    activeSection === "info" ? "bg-primary text-white" : "hover:surface-hover"
+                  }`}
+                  onClick={() => handleSectionChange("info")}
+                >
+                  <Info />
+                  <span>Course Information</span>
+                </li>
+                <li
+                  className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                    activeSection === "course-index" ? "bg-primary text-white" : "hover:surface-hover"
+                  }`}
+                  onClick={() => handleSectionChange("course-index")}
+                >
+                  <List />
+                  <span>Course</span>
+                </li>
+                <li
+                  className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
+                    activeSection === "grading" ? "bg-primary text-white" : "hover:surface-hover"
+                  }`}
+                  onClick={() => handleSectionChange("grading")}
+                >
+                  <Percent />
+                  <span>Grading Scheme</span>
+                </li>
+              </ul>
+            </div>
           </Card>
-          <div className="surface-card p-3 border-round shadow-2 mb-4">
-            <ul className="list-none p-0 m-0">
-              <li
-                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
-                  activeSection === "info" ? "bg-primary text-white" : "hover:surface-hover"
-                }`}
-                onClick={() => setActiveSection("info")}
-              >
-                <i className="pi pi-info-circle"></i>
-                <span>Course Information</span>
-              </li>
-              <li
-                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
-                  activeSection === "course-index" ? "bg-primary text-white" : "hover:surface-hover"
-                }`}
-                onClick={() => setActiveSection("course-index")}
-              >
-                <i className="pi pi-list"></i>
-                <span>Course Content</span>
-              </li>
-
-              <li
-                className={`p-3 cursor-pointer flex align-items-center gap-2 border-round ${
-                  activeSection === "grading" ? "bg-primary text-white" : "hover:surface-hover"
-                }`}
-                onClick={() => setActiveSection("grading")}
-              >
-                <i className="pi pi-percentage"></i>
-                <span>Grading Scheme</span>
-              </li>
-            </ul>
-          </div>
         </div>
-
         <div className="col-12 lg:col-9">
           {renderMainContent()}
         </div>
       </div>
-
-      <Dialog
-        header={selectedItem ? `Progress: ${selectedItem.name}` : "Progress"}
-        visible={progressDialogVisible}
-        style={{ width: "60vw" }}
-        modal
-        onHide={() => {
-          setProgressDialogVisible(false);
-          setSelectedStudentId("");
-          setStudentActivities([]);
-        }}
-      >
-        <div className="grid">
-          <div className="col-12 md:col-5">
-            <div className="text-600 mb-2">Select Student</div>
-            <div className="surface-100 border-round p-2" style={{ maxHeight: 350, overflow: 'auto' }}>
-              {students.map((s) => (
-                <div
-                  key={s.id}
-                  className={`p-2 border-round cursor-pointer flex align-items-center justify-content-between ${selectedStudentId === s.id ? 'surface-200' : ''}`}
-                  onClick={async () => {
-                    setSelectedStudentId(s.id);
-                    if (selectedItem) {
-                      try {
-                        const res = await api.get(`/student-progress/${s.id}/${selectedItem.id}`);
-                        const items = (res.data.data?.[0]?.activities || []) as Array<{ id: number; title: string; activity_type: string; progress: string; last_read: string | null }>;
-                        setStudentActivities(items);
-                      } catch (e) {
-                        console.error('Failed to fetch student progress', e);
-                        setStudentActivities([]);
-                      }
-                    }
-                  }}
-                >
-                  <span>{s.first_name} {s.last_name}</span>
-                  <i className="pi pi-angle-right text-600"></i>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="col-12 md:col-7">
-            <div className="text-600 mb-2">Activities</div>
-            <div className="surface-100 border-round p-3" style={{ minHeight: 350 }}>
-              {selectedStudentId && studentActivities.length === 0 && (
-                <div className="text-600">No activities found.</div>
-              )}
-              {studentActivities.map((a) => (
-                <div key={a.id} className="flex align-items-center justify-content-between py-2 border-bottom-1 surface-border">
-                  <div>
-                    <div className="font-medium">{a.title}</div>
-                    <div className="text-600 text-sm">{a.activity_type} • {a.last_read ? new Date(a.last_read).toLocaleString() : '—'}</div>
-                  </div>
-                  <div className="text-primary font-semibold">{a.progress}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Dialog>
-
       <CourseDetailsSidebar
         visible={detailsSidebarVisible}
         onHide={() => setDetailsSidebarVisible(false)}
         selectedDetails={selectedDetails}
         detailsLoading={detailsLoading}
-        courseComponents={courseComponents}
+        courseComponents={courseComponents} 
         getItemIcon={getItemIcon}
         parseJsonArrayToString={parseJsonArrayToString}
         onUpdate={handleRefreshData} 

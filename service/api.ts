@@ -5,7 +5,6 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Request interceptor for token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,7 +13,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor for 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -26,6 +24,14 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+
+export interface Course {
+  id?: number;
+  name: string;
+  description?: string;
+  [key: string]: any; 
+}
 
 export const ApiService = {
   /**  Auth */
@@ -107,13 +113,145 @@ export const ApiService = {
     return res.data.data;
   },
 
-  /** Course Viewer */
-  async getCourseViewer(courseId: string | number): Promise<CourseViewerResponse> {
-    const res = await api.get(`/course-viewer/${courseId}`);
-    return res.data.data as CourseViewerResponse; 
+  // ================ NEW SPLIT APIS ================
+
+  async createCourse(courseData: Partial<Course>): Promise<any> {
+    const response = await fetch('/api/courses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(courseData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create course');
+    }
+
+    return response.json();
   },
 
-  /**  Student Quiz/Assessment/Exam Detail */
+  /** Course Overview API - Lightweight Course Data */
+  async getCourseOverview(courseId: string | number): Promise<CourseOverviewResponse> {
+    const res = await api.get(`/course-viewer/${courseId}`);
+    return res.data.data as CourseOverviewResponse;
+  },
+
+  /** Component Detail API - Detailed Component Data */
+  async getComponentDetail(componentId: string | number): Promise<ComponentDetailResponse> {
+    const res = await api.get(`/component-detail/${componentId}`);
+    return res.data.data as ComponentDetailResponse;
+  },
+
+  /** Activity Detail API - Activity Specific Data */
+  async getActivityDetail(activityId: string | number): Promise<ActivityDetailResponse> {
+    const res = await api.get(`/activity-detail/activity/${activityId}`);
+    return res.data.data as ActivityDetailResponse;
+  },
+
+  /** Topic Detail API - Topic Specific Data */
+  async getTopicDetail(topicId: string | number): Promise<TopicDetailResponse> {
+    const res = await api.get(`/activity-detail/topic/${topicId}`);
+    return res.data.data as TopicDetailResponse;
+  },
+
+// ================ QUESTION COUNT APIS ================
+
+/** Get Assessment Question Count */
+async getAssessmentQuestionCount(assessmentId: string | number): Promise<number> {
+  try {
+    const res = await api.get(`/items/assessment_question?aggregate[count]=id&filter[_and][0][assessment_id]=${assessmentId}`);
+    console.log('Full Assessment API Response:', res);
+    
+    // Different possible response structures handle karo
+    if (res.data?.data?.[0]?.count?.id !== undefined) {
+      return res.data.data[0].count.id;
+    }
+    
+    // Agar direct data mein count hai
+    if (res.data?.count !== undefined) {
+      return res.data.count;
+    }
+    
+    // Agar data array directly count return kar raha hai
+    if (Array.isArray(res.data) && res.data[0]?.count?.id !== undefined) {
+      return res.data[0].count.id;
+    }
+    
+    console.log('Unexpected API response structure:', res.data);
+    return 0;
+  } catch (error) {
+    console.error('Error fetching assessment question count:', error);
+    return 0;
+  }
+},
+
+/** Get Exam Question Count */
+async getExamQuestionCount(examId: string | number): Promise<number> {
+  try {
+    const res = await api.get(`/items/exam_question?aggregate[count]=id&filter[_and][0][exam_id]=${examId}`);
+    console.log('Full Exam API Response:', res);
+    
+    // Different possible response structures handle karo
+    if (res.data?.data?.[0]?.count?.id !== undefined) {
+      return res.data.data[0].count.id;
+    }
+    
+    // Agar direct data mein count hai
+    if (res.data?.count !== undefined) {
+      return res.data.count;
+    }
+    
+    // Agar data array directly count return kar raha hai
+    if (Array.isArray(res.data) && res.data[0]?.count?.id !== undefined) {
+      return res.data[0].count.id;
+    }
+    
+    console.log('Unexpected API response structure:', res.data);
+    return 0;
+  } catch (error) {
+    console.error('Error fetching exam question count:', error);
+    return 0;
+  }
+},
+
+  // ================ BACKWARD COMPATIBILITY ================
+  
+  /** Legacy Course Viewer - Uses new Course Overview API */
+  async getCourseViewer(courseId: string | number): Promise<CourseOverviewResponse> {
+    return this.getCourseOverview(courseId);
+  },
+
+  /** Legacy Component Detail - Uses new Component Detail API */
+  getCourseViewerDetail(componentId: string | number): Promise<ComponentDetailResponse> {
+    return this.getComponentDetail(componentId);
+  },
+
+  // ================ CONVENIENCE METHODS ================
+  
+  /** Get Learning Object Detail */
+  getLearningObjectDetail(id: string | number) { 
+    return this.getComponentDetail(id); 
+  },
+
+  /** Get Assessment Detail */
+  getAssessmentDetail(id: string | number) { 
+    return this.getComponentDetail(id); 
+  },
+
+  /** Get Exam Detail */
+  getExamDetail(id: string | number) { 
+    return this.getComponentDetail(id); 
+  },
+
+  /** Get Lesson Detail - Alias for Component Detail */
+  getLessonDetail(id: string | number) { 
+    return this.getComponentDetail(id); 
+  },
+
+  // ================ QUIZ/ASSESSMENT DETAIL ================
+  
+  /** Student Quiz/Assessment/Exam Detail */
   async getQuizDetail(
     studentId: string | number,
     quizId: string | number,
@@ -217,8 +355,9 @@ export const ApiService = {
 
 export default api;
 
-// Types for Course Viewer API
-export interface CourseViewerResponse {
+// ================ NEW RESPONSE INTERFACES ================
+
+export interface CourseOverviewResponse {
   course: {
     id: number;
     name: string;
@@ -226,51 +365,293 @@ export interface CourseViewerResponse {
     program_of_study?: string | null;
     session?: string | null;
     status?: string | null;
-  };
-  studentProgressData: {
+    course_type?: string | null;
+    character_voice?: string | null;
+    grading_scheme: {
+      total_weight: number;
+      components: Array<{
+        type: 'assessment' | 'exam';
+        name: string;
+        weightage: number;
+      }>;
+    };
     lessons: Array<{
       id: number;
-      name: string;
-      type: string;
-      sort?: number;
-      progress?: number;
-      completed?: boolean;
-      score?: number;
-      children?: Array<{
-        id: number;
-        name: string;
-        type: string;
-        sort?: number;
-        progress?: number;
-        score?: number;
-        question_count?: number;
-        weightage?: number;
-      }>;
+      type: 'learning_object' | 'assessment' | 'exam';
+      progress: number;
+      completed: boolean;
+      sequence_order: number;
+      name?: string | null;
+      description?: string | null;
+      total_topics_count?: number;
+      total_questions_count?: number;
+      weightage?: number;
     }>;
   };
-  courseComponents: {
-    learning_objects: Array<{
-      description: any;
-      grade: any;
-      subject: any;
-      character_voice: any;
-      learning_object_tags: any;
+}
+
+export interface ComponentDetailResponse {
+  learning_objects: never[];
+  assessments: never[];
+  exams: never[];
+  component: {
+    id: number;
+    type: 'learning_object' | 'assessment' | 'exam';
+    name: string;
+    description?: string | null;
+    learning_objects?: Array<{
       id: number;
-      name?: string;
-      topics?: Array<{
-        topics: any;
+      character_voice?: string | null;
+      name?: string | null;
+      description?: string | null;
+      grade?: string | null;
+      subject?: string | null;
+      learning_object_tags?: string | null;
+      topics: Array<{
         id: number;
         name: string;
-        activities?: Array<{
+        description?: string | null;
+        learning_object_id?: number;
+        Character_Voice?: string | null;
+        activities: Array<{
           id: number;
           name: string;
           type: string;
+          description?: string | null;
+          file?: FileDetails | null;
+          character_voice?: string | null;
         }>;
       }>;
     }>;
-    assessments: Array<any>;
-    exams: Array<any>;
-    activities: Array<any>;
+    assessment?: {
+      id: number;
+      name: string;
+      description?: string | null;
+      weight?: number;
+      questions: Array<QuestionDetails>;
+    };
+    exam?: {
+      id: number;
+      name: string;
+      description?: string | null;
+      weight?: number;
+      questions: Array<QuestionDetails>;
+    };
+  };
+}
+
+export interface ActivityDetailResponse {
+  activity: {
+    id: number;
+    name: string;
+    type: string;
+    description?: string | null;
+    file?: FileDetails | null;
+    character_voice?: string | null;
+    questions: Array<QuestionDetails>;
+  };
+}
+
+export interface TopicDetailResponse {
+  topic: {
+    id: number;
+    name: string;
+    description?: string | null;
+    character_voice?: string | null;
+    activities: Array<{
+      id: number;
+      name: string;
+      type: string;
+      description?: string | null;
+    }>;
+  };
+}
+
+// ================ SHARED INTERFACES ================
+
+export interface FileDetails {
+  id: string;
+  filename_download: string;
+  title?: string | null;
+  type: string;
+  filesize: number;
+  duration?: number | null;
+  width?: number | null;
+  height?: number | null;
+  storage: string;
+  metadata: {
+    created_on: string;
+    modified_on: string;
+  };
+}
+
+export interface QuestionDetails {
+  id: number;
+  statement: string;
+  question_type: string;
+  max_points: number;
+  image?: FileDetails | null;
+  options: Array<{
+    id: number;
+    text: string;
+    is_correct: boolean;
+    image?: FileDetails | null;
+  }>;
+  correct_answer: any;
+  explanation?: string | null;
+}
+
+// ================ LEGACY INTERFACES (FOR BACKWARD COMPATIBILITY) ================
+
+export interface CourseViewerResponse extends CourseOverviewResponse {}
+export interface CourseViewerDetailResponse extends ComponentDetailResponse {}
+
+// ================ DEPRECATED INTERFACES (TO BE REMOVED EVENTUALLY) ================
+
+/**
+ * @deprecated 
+ */
+export interface OldCourseViewerResponse {
+  course: {
+    id: number;
+    name: string;
+    description?: string | null;
+    program_of_study?: string | null;
+    session?: string | null;
+    status?: string | null;
+    grading_scheme?: {
+      total_weight: number;
+      components: Array<{
+        type: 'assessment' | 'exam';
+        name: string;
+        weight: number;
+      }>;
+    };
+    lessons: Array<{
+      id: number;
+      name: string;
+      type: 'learning_object' | 'assessment' | 'exam' | string;
+      description?: string | null;
+      progress?: number;
+      completed?: boolean;
+      sequence_order?: number;
+      question_count?: number;
+      weightage?: number;
+      topics?: Array<{
+        id: number;
+        name: string;
+        description?: string | null;
+        learning_object_id?: number;
+        character_voice?: string | null;
+        type: 'topic';
+        activities: Array<{
+          id: number;
+          name: string;
+          type: string;
+          description?: string | null;
+        }>;
+      }>;
+    }>;
+  };
+  courseComponents?: {
+    learning_objects: Array<{
+      id: number;
+      name?: string | null;
+      description?: string | null;
+      topics?: Array<{
+        id: number;
+        name: string;
+        description?: string | null;
+        learning_object_id?: number;
+        character_voice?: string | null;
+        activities: Array<{
+          id: number;
+          name: string;
+          type: string;
+          description?: string | null;
+          file?: {
+            id: string;
+            url: string;
+            filename_download: string;
+            title?: string | null;
+            type: string;
+            filesize: number;
+            duration?: number;
+            width?: number;
+            height?: number;
+            storage: string;
+            metadata: {
+              created_on: string;
+              modified_on: string;
+            };
+          } | null;
+          character_voice?: string | null;
+          questions?: Array<{
+            id: number;
+            statement: string;
+            question_type: string;
+            max_points: number;
+            image?: any;
+            options: Array<{
+              id: number;
+              text: string;
+              is_correct: boolean;
+              image?: any;
+            }>;
+            correct_answer: any;
+            explanation?: string | null;
+          }>;
+        }>;
+      }>;
+    }>;
+    assessments: Array<{
+      id: number;
+      name: string;
+      description?: string | null;
+      total_questions: number;
+      weight?: number | null;
+      questions: Array<{
+        id: number;
+        statement: string;
+        question_type: string;
+        max_points: number;
+        image?: any;
+        options: Array<{
+          id: number;
+          text: string;
+          is_correct: boolean;
+          image?: any;
+        }>;
+        correct_answer: any;
+        explanation?: string | null;
+      }>;
+    }>;
+    exams: Array<{
+      id: number;
+      name: string;
+      description?: string | null;
+      total_questions: number;
+      weight?: number | null;
+      questions: Array<{
+        id: number;
+        statement: string;
+        question_type: string;
+        max_points: number;
+        image?: any;
+        options: Array<{
+          id: number;
+          text: string;
+          is_correct: boolean;
+          image?: any;
+        }>;
+        correct_answer: any;
+        explanation?: string | null;
+      }>;
+    }>;
+  };
+  mediaUrls: {
+    baseUrl: string;
+    filesBaseUrl: string;
   };
   courseMetadata?: {
     created_date?: string;

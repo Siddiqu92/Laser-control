@@ -238,7 +238,6 @@ const formatDate = (dateString: string | null): string => {
     const hasAnyInteraction = !!rowData.last_read || (!!rowData.progress && Number((rowData.progress || '').replace('%','')) > 0);
 
     if (score === 0) {
-      // For practice: 0% if attempted/skipped/incorrect but no correct; Not Started if truly no interaction
       if (!hasAnyInteraction) {
         return (
           <div className="flex items-center gap-2 w-[140px]">
